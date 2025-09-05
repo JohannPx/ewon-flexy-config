@@ -458,10 +458,14 @@ try {
     # Télécharger le firmware si mode online et firmware sélectionné
     if ($mode -eq "1" -and -not $skipFirmwareUpdate) {
         Write-Host "`nPreparation du firmware..." -ForegroundColor Cyan
-        $fwInfo = $manifest.firmwares | Where-Object { $_.version -eq $targetFw }
-        $hasEbu = if ($fwInfo.hasEbu) { $fwInfo.hasEbu } else { $false }
-        
-        # Note: Les firmwares sont maintenant communs à tous les modèles
+       $fwInfo = $manifest.firmwares | Where-Object { $_.version -eq $targetFw }
+        $hasEbu = [bool]$fwInfo.hasEbu
+
+        Write-Host "DEBUG: targetFw = $targetFw" -ForegroundColor Yellow
+        Write-Host "DEBUG: model = $model" -ForegroundColor Yellow
+        Write-Host "DEBUG: hasEbu = $hasEbu (type: $($hasEbu.GetType()))" -ForegroundColor Yellow
+        Write-Host "DEBUG: fwInfo = $($fwInfo | ConvertTo-Json)" -ForegroundColor Yellow
+
         $success = Download-HMSFirmware -Version $targetFw -Model $model -HasEbu $hasEbu
         
         if (-not $success) {
