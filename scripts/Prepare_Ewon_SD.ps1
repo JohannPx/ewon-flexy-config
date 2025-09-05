@@ -78,7 +78,7 @@ function Download-HMSFirmware {
         }
         
         # Télécharger le .ebus (toujours nécessaire)
-        $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma.ebus"
+        $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma_secure.ebus"
         Write-Host "    DEBUG: URL = $ebusUrl" -ForegroundColor Yellow
         $ebusLocalPath = Join-Path $localFwDir "ewonfwr.ebus"
         
