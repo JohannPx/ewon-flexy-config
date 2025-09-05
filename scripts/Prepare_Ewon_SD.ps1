@@ -1,5 +1,5 @@
 # PowerShell Script: Prepare Ewon Flexy SD card with online sources
-# Version: 2.1.0
+# Version: 2.2.0
 # Author: JPR
 # Date: 2025-01-10
 
@@ -20,7 +20,7 @@ $ErrorActionPreference = 'Stop'
 # Configuration GitHub (A MODIFIER avec votre repository)
 $GitHubRepo = "JohannPx/ewon-flexy-config"
 $GitHubBranch = "main"
-$GitHubToken = "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"
+$GitHubToken = "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"  # Remplacez par votre token si repo privé
 $LocalCacheDir = Join-Path $env:APPDATA "EwonFlexConfig"
 
 function Log { param([string]$msg) $ts = (Get-Date).ToString('s'); Write-Host ("$ts | $msg") }
@@ -34,15 +34,24 @@ function Get-Manifest {
     $manifestUrl = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/manifest.json"
     try {
         Write-Host "Recuperation du catalogue des firmwares..." -ForegroundColor Gray
+        
+        # Headers pour repo privé
         $headers = @{
             Authorization = "token $GitHubToken"
             Accept = "application/vnd.github.v3.raw"
         }
+        
         $manifest = Invoke-RestMethod -Uri $manifestUrl -Headers $headers -UseBasicParsing
         return $manifest
     }
     catch {
-        # ... reste du code
+        Write-Host "Impossible de recuperer le catalogue. Verification du cache local..." -ForegroundColor Yellow
+        $cachedManifest = Join-Path $LocalCacheDir "manifest.json"
+        if (Test-Path $cachedManifest) {
+            Write-Host "Utilisation du cache local" -ForegroundColor Yellow
+            return Get-Content $cachedManifest | ConvertFrom-Json
+        }
+        return $null
     }
 }
 
@@ -54,13 +63,14 @@ function Download-HMSFirmware {
         [bool]$HasEbu
     )
     
-    # Les firmwares sont communs à tous les modèles
-    # Format: er-15-0s2-arm-ma.ebus et er-15-0s2-arm-ma.ebu
+    # Format: er-15-0s2-arm-ma_secure.ebus et er-15-0s2-arm-ma.ebu
     $versionForUrl = $Version -replace '\.', '-'  # 15.0s2 -> 15-0s2
     $baseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
     
-    # Chemins locaux - Créer le dossier avec le nom du modèle pour compatibilité
-    $localFwDir = "$LocalCacheDir\Firmware\$Version\Flexy $Model"
+    # Chemins locaux
+    $fwBaseDir = Join-Path $LocalCacheDir "Firmware"
+    $versionDir = Join-Path $fwBaseDir $Version
+    $localFwDir = Join-Path $versionDir "Flexy $Model"
     
     # Vérifier si déjà téléchargé
     $ebusPath = Join-Path $localFwDir "ewonfwr.ebus"
@@ -77,18 +87,16 @@ function Download-HMSFirmware {
             New-Item -ItemType Directory -Path $localFwDir -Force | Out-Null
         }
         
-        # Télécharger le .ebus (toujours nécessaire)
+        # Télécharger le .ebus (toujours nécessaire) - AVEC _secure
         $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma_secure.ebus"
-        Write-Host "    DEBUG: URL = $ebusUrl" -ForegroundColor Yellow
         $ebusLocalPath = Join-Path $localFwDir "ewonfwr.ebus"
         
         Write-Host "    Telechargement .ebus..." -ForegroundColor Gray
         Invoke-WebRequest -Uri $ebusUrl -OutFile $ebusLocalPath -UseBasicParsing
         
-        # Télécharger le .ebu si nécessaire (pour migration 14.x -> 15.0.x)
+        # Télécharger le .ebu si nécessaire (pour migration 14.x -> 15.0.x) - SANS _secure
         if ($HasEbu) {
             $ebuUrl = "$baseUrl/er-$versionForUrl-arm-ma.ebu"
-            Write-Host "    DEBUG: URL = $ebuUrl" -ForegroundColor Yellow
             $ebuLocalPath = Join-Path $localFwDir "ewonfwr.ebu"
             
             Write-Host "    Telechargement .ebu (pour migration 14.x)..." -ForegroundColor Gray
@@ -126,7 +134,7 @@ function Download-Configuration {
         
         Write-Host "  Telechargement configuration $Type..." -ForegroundColor Gray
         
-        # Ajouter les headers d'authentification
+        # Headers pour repo privé
         $headers = @{
             Authorization = "token $GitHubToken"
             Accept = "application/vnd.github.v3.raw"
@@ -156,7 +164,7 @@ function Download-T2MKey {
         
         Write-Host "  Telechargement cle T2M..." -ForegroundColor Gray
         
-        # Ajouter les headers d'authentification
+        # Headers pour repo privé
         $headers = @{
             Authorization = "token $GitHubToken"
             Accept = "application/vnd.github.v3.raw"
@@ -339,9 +347,17 @@ try {
         
         # Télécharger les configurations de base
         Write-Host "`nTelechargement des configurations..." -ForegroundColor Cyan
-        $configEthPath = "$LocalCacheDir\Configuration\Internet par Ethernet\backup.tar"
-        $config4GPath = "$LocalCacheDir\Configuration\Internet par modem 4G\backup.tar"
-        $t2mPath = "$LocalCacheDir\T2M Global Registration Key\T2M.txt"
+        
+        # Construction correcte des chemins
+        $configBaseDir = Join-Path $LocalCacheDir "Configuration"
+        $configEthDir = Join-Path $configBaseDir "Internet par Ethernet"
+        $configEthPath = Join-Path $configEthDir "backup.tar"
+        
+        $config4GDir = Join-Path $configBaseDir "Internet par modem 4G"
+        $config4GPath = Join-Path $config4GDir "backup.tar"
+        
+        $t2mBaseDir = Join-Path $LocalCacheDir "T2M Global Registration Key"
+        $t2mPath = Join-Path $t2mBaseDir "T2M.txt"
         
         Download-Configuration -Type "ethernet" -LocalPath $configEthPath
         Download-Configuration -Type "4g" -LocalPath $config4GPath
@@ -357,7 +373,6 @@ try {
     }
     
     # Définir les chemins
-    $RootDir = if ($mode -eq "1") { [Environment]::GetFolderPath('Desktop') } else { Split-Path -Parent $SourceDir }
     $CfgDir = Join-Path $SourceDir "Configuration"
     $FwDir = Join-Path $SourceDir "Firmware"
     $T2MDir = Join-Path $SourceDir "T2M Global Registration Key"
@@ -460,14 +475,9 @@ try {
     # Télécharger le firmware si mode online et firmware sélectionné
     if ($mode -eq "1" -and -not $skipFirmwareUpdate) {
         Write-Host "`nPreparation du firmware..." -ForegroundColor Cyan
-       $fwInfo = $manifest.firmwares | Where-Object { $_.version -eq $targetFw }
+        $fwInfo = $manifest.firmwares | Where-Object { $_.version -eq $targetFw }
         $hasEbu = [bool]$fwInfo.hasEbu
-
-        Write-Host "DEBUG: targetFw = $targetFw" -ForegroundColor Yellow
-        Write-Host "DEBUG: model = $model" -ForegroundColor Yellow
-        Write-Host "DEBUG: hasEbu = $hasEbu (type: $($hasEbu.GetType()))" -ForegroundColor Yellow
-        Write-Host "DEBUG: fwInfo = $($fwInfo | ConvertTo-Json)" -ForegroundColor Yellow
-
+        
         $success = Download-HMSFirmware -Version $targetFw -Model $model -HasEbu $hasEbu
         
         if (-not $success) {
@@ -484,15 +494,29 @@ try {
         Log "Selections -> model=$model currentFw=$currentFw targetFw=$targetFw Internet=$profile"
     }
     
-    # Sélection du lecteur SD
-    $defaultDrive = $RootDir
-    Write-Host "`nLettre de lecteur SD (ex: E:) [defaut: $defaultDrive]" -ForegroundColor Cyan
-    $sdDrive = Read-Host
-    if([string]::IsNullOrWhiteSpace($sdDrive)){ $sdDrive = $defaultDrive }
+    # Sélection du lecteur SD - AMELIORATION
+    Write-Host "`n=== Selection du lecteur de carte SD ===" -ForegroundColor Cyan
+    Write-Host "Inserez votre carte SD et entrez sa lettre de lecteur" -ForegroundColor Yellow
+    Write-Host "Exemples: E: ou F: ou G:" -ForegroundColor Gray
+    $sdDrive = Read-Host "Lettre du lecteur SD"
+    
+    # Ajouter :\ si l'utilisateur tape juste la lettre
+    if ($sdDrive -match '^[A-Za-z]$') {
+        $sdDrive = "${sdDrive}:\"
+    }
+    elseif ($sdDrive -match '^[A-Za-z]:$') {
+        $sdDrive = "${sdDrive}\"
+    }
+    elseif ($sdDrive -notmatch '^[A-Za-z]:\\') {
+        Write-Host "Format invalide. Utilisez une lettre de lecteur (ex: E:)" -ForegroundColor Red
+        throw "Format de lecteur invalide"
+    }
+    
     if(-not (Test-Path $sdDrive)){ 
         Log "Drive not found: $sdDrive"
-        throw "Drive not found" 
+        throw "Lecteur $sdDrive non trouve. Verifiez que la carte SD est bien inseree." 
     }
+    
     Log "Drive=$sdDrive"
     
     # Fichiers à copier
@@ -631,7 +655,7 @@ ETAPE 2 : INSERTION DE LA CARTE (CONFIGURATION UNIQUEMENT)
 ETAPE 3 : DEMANDE D ACCES A DISTANCE
 Transmettez aux administrateurs/configurateurs les informations suivantes :
 - Numero de serie de l Ewon (visible sur l etiquette de l appareil)
-- Information carte SIM (numero MODEM Clauger)
+- Information carte SIM (numero MODEM)
 - Identifiant IFS du site client
 - Nom souhaite pour l Ewon
 - Plan des equipements a connecter
@@ -666,7 +690,7 @@ ETAPE 3 : DEUXIEME INSERTION (CONFIGURATION)
 ETAPE 4 : DEMANDE D ACCES A DISTANCE
 Transmettez aux administrateurs/configurateurs les informations suivantes :
 - Numero de serie de l Ewon (visible sur l etiquette de l appareil)
-- Information carte SIM (numero MODEM Clauger)
+- Information carte SIM (numero MODEM)
 - Identifiant IFS du site client
 - Nom souhaite pour l Ewon
 - Plan des equipements a connecter
