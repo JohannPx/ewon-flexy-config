@@ -60,7 +60,7 @@ function Download-HMSFirmware {
     $baseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
     
     # Chemins locaux - Créer le dossier avec le nom du modèle pour compatibilité
-    $localFwDir = Join-Path $LocalCacheDir "Firmware" $Version "Flexy $Model"
+    $localFwDir = "$LocalCacheDir\Firmware\$Version\Flexy $Model"
     
     # Vérifier si déjà téléchargé
     $ebusPath = Join-Path $localFwDir "ewonfwr.ebus"
