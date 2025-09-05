@@ -337,9 +337,9 @@ try {
         
         # Télécharger les configurations de base
         Write-Host "`nTelechargement des configurations..." -ForegroundColor Cyan
-        $configEthPath = Join-Path $LocalCacheDir "Configuration" "Internet par Ethernet" "backup.tar"
-        $config4GPath = Join-Path $LocalCacheDir "Configuration" "Internet par modem 4G" "backup.tar"
-        $t2mPath = Join-Path $LocalCacheDir "T2M Global Registration Key" "T2M.txt"
+        $configEthPath = "$LocalCacheDir\Configuration\Internet par Ethernet\backup.tar"
+        $config4GPath = "$LocalCacheDir\Configuration\Internet par modem 4G\backup.tar"
+        $t2mPath = "$LocalCacheDir\T2M Global Registration Key\T2M.txt"
         
         Download-Configuration -Type "ethernet" -LocalPath $configEthPath
         Download-Configuration -Type "4g" -LocalPath $config4GPath
