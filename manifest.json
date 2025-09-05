@@ -1,0 +1,20 @@
+{
+  "version": "1.1.0",
+  "lastUpdate": "2025-01-10",
+  "firmwares": [
+    {
+      "version": "15.0s1",
+      "models": {
+        "202": {"productCode": "21", "hasEbu": true},
+        "203": {"productCode": "21", "hasEbu": true},
+        "205": {"productCode": "24", "hasEbu": true}
+      }
+    }
+  ],
+  "hmsBaseUrl": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/",
+  "configurations": {
+    "ethernet": "configurations/ethernet/backup.tar",
+    "4g": "configurations/4g/backup.tar"
+  },
+  "t2mKey": "t2m/T2M.txt"
+}
