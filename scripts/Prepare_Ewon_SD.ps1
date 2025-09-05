@@ -79,6 +79,7 @@ function Download-HMSFirmware {
         
         # Télécharger le .ebus (toujours nécessaire)
         $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma.ebus"
+        Write-Host "    DEBUG: URL = $ebusUrl" -ForegroundColor Yellow
         $ebusLocalPath = Join-Path $localFwDir "ewonfwr.ebus"
         
         Write-Host "    Telechargement .ebus..." -ForegroundColor Gray
@@ -87,6 +88,7 @@ function Download-HMSFirmware {
         # Télécharger le .ebu si nécessaire (pour migration 14.x -> 15.0.x)
         if ($HasEbu) {
             $ebuUrl = "$baseUrl/er-$versionForUrl-arm-ma.ebu"
+            Write-Host "    DEBUG: URL = $ebuUrl" -ForegroundColor Yellow
             $ebuLocalPath = Join-Path $localFwDir "ewonfwr.ebu"
             
             Write-Host "    Telechargement .ebu (pour migration 14.x)..." -ForegroundColor Gray
