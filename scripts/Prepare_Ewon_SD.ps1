@@ -18,7 +18,7 @@ trap {
 $ErrorActionPreference = 'Stop'
 
 # Configuration GitHub (A MODIFIER avec votre repository)
-$GitHubRepo = "JohannPx/ewon-config-tool"
+$GitHubRepo = "JohannPx/ewon-flexy-config"
 $GitHubBranch = "main"
 $GitHubToken = "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"
 $LocalCacheDir = Join-Path $env:APPDATA "EwonFlexConfig"
