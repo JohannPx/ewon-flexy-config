@@ -20,6 +20,7 @@ $ErrorActionPreference = 'Stop'
 # Configuration GitHub (A MODIFIER avec votre repository)
 $GitHubRepo = "JohannPx/ewon-config-tool"
 $GitHubBranch = "main"
+$GitHubToken = "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"
 $LocalCacheDir = Join-Path $env:APPDATA "EwonFlexConfig"
 
 function Log { param([string]$msg) $ts = (Get-Date).ToString('s'); Write-Host ("$ts | $msg") }
@@ -33,17 +34,15 @@ function Get-Manifest {
     $manifestUrl = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/manifest.json"
     try {
         Write-Host "Recuperation du catalogue des firmwares..." -ForegroundColor Gray
-        $manifest = Invoke-RestMethod -Uri $manifestUrl -UseBasicParsing
+        $headers = @{
+            Authorization = "token $GitHubToken"
+            Accept = "application/vnd.github.v3.raw"
+        }
+        $manifest = Invoke-RestMethod -Uri $manifestUrl -Headers $headers -UseBasicParsing
         return $manifest
     }
     catch {
-        Write-Host "Impossible de recuperer le catalogue. Verification du cache local..." -ForegroundColor Yellow
-        $cachedManifest = Join-Path $LocalCacheDir "manifest.json"
-        if (Test-Path $cachedManifest) {
-            Write-Host "Utilisation du cache local" -ForegroundColor Yellow
-            return Get-Content $cachedManifest | ConvertFrom-Json
-        }
-        return $null
+        # ... reste du code
     }
 }
 
@@ -124,7 +123,14 @@ function Download-Configuration {
         }
         
         Write-Host "  Telechargement configuration $Type..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $url -OutFile $LocalPath -UseBasicParsing
+        
+        # Ajouter les headers d'authentification
+        $headers = @{
+            Authorization = "token $GitHubToken"
+            Accept = "application/vnd.github.v3.raw"
+        }
+        
+        Invoke-WebRequest -Uri $url -Headers $headers -OutFile $LocalPath -UseBasicParsing
         Write-Host "    [OK]" -ForegroundColor Green
         return $true
     }
@@ -147,7 +153,14 @@ function Download-T2MKey {
         }
         
         Write-Host "  Telechargement cle T2M..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $url -OutFile $LocalPath -UseBasicParsing
+        
+        # Ajouter les headers d'authentification
+        $headers = @{
+            Authorization = "token $GitHubToken"
+            Accept = "application/vnd.github.v3.raw"
+        }
+        
+        Invoke-WebRequest -Uri $url -Headers $headers -OutFile $LocalPath -UseBasicParsing
         Write-Host "    [OK]" -ForegroundColor Green
         return $true
     }
