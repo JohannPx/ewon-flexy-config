@@ -68,9 +68,9 @@ function Get-Manifest {
 
     try {
         Write-Host "Recuperation du catalogue des firmwares..." -ForegroundColor Gray
-        Write-Host "URL (RAW): $manifestUrl"
-        Write-Host "URL (API): $apiUrl"
-        Write-Host ("Auth header present: {0}" -f ([bool]$GitHubToken))
+        # Write-Host "URL (RAW): $manifestUrl"
+        # Write-Host "URL (API): $apiUrl"
+        # Write-Host ("Auth header present: {0}" -f ([bool]$GitHubToken))
 
         # Garde ton implémentation actuelle mais LOG l’URL utilisée :
         # Ici je laisse ton appel tel quel (RAW) pour rester minimaliste.
