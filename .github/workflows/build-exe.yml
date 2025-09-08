@@ -1,0 +1,77 @@
+name: Build EXE (Ewon SD)
+
+on:
+  workflow_dispatch: {}   # lancement manuel
+
+permissions:
+  contents: read          # suffisant pour checkout
+
+jobs:
+  build:
+    runs-on: windows-latest
+    env:
+      GH_REPO:  ${{ vars.GH_REPO }}      # ex: JohannPx/ewon-flexy-config
+      GH_BRANCH: ${{ vars.GH_BRANCH }}    # ex: main
+      GH_PAT:   ${{ secrets.GH_PAT }}    # ton PAT fine-grained (READ)
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Installer ps2exe
+        shell: pwsh
+        run: |
+          Set-PSRepository PSGallery -InstallationPolicy Trusted
+          Install-Module ps2exe -Scope CurrentUser -Force -AllowClobber
+
+      - name: Préparer le script final (injection repo/branche, pas de token embarqué)
+        shell: pwsh
+        run: |
+          $src = "scripts/Prepare_Ewon_SD.ps1"        # adapte si chemin différent
+          if (-not (Test-Path $src)) { throw "Introuvable: $src" }
+
+          $raw = Get-Content -Raw -Path $src
+
+          # Remplacements robustes (multilignes)
+          $raw = $raw -replace '(?m)^\s*\$GitHubRepo\s*=\s*".*?"',   ('$GitHubRepo = "{0}"'   -f $env:GH_REPO)
+          $raw = $raw -replace '(?m)^\s*\$GitHubBranch\s*=\s*".*?"', ('$GitHubBranch = "{0}"' -f $env:GH_BRANCH)
+
+          # IMPORTANT: ne pas embarquer le token dans l'EXE
+          $raw = $raw -replace '(?m)^\s*\$GitHubToken\s*=\s*".*?"',  ('$GitHubToken = ""')
+
+          $out = "Prepare_Ewon_SD_Final.ps1"
+          Set-Content -Path $out -Value $raw -Encoding UTF8
+
+          # Vérification visuelle (token masqué de toute façon vide ici)
+          Select-String -Path $out -Pattern '^\s*\$GitHub(Repo|Branch|Token)\s*=' -AllMatches
+
+      - name: Compiler en EXE
+        shell: pwsh
+        run: |
+          $Version = "1.0.0"
+          $Company = "Clauger"
+          $in  = "Prepare_Ewon_SD_Final.ps1"
+          $exe = "PrepareEwonSD_v$Version.exe"
+
+          if (-not (Test-Path $in)) { throw "Introuvable: $in" }
+
+          ps2exe -inputFile $in `
+                 -outputFile $exe `
+                 -noConsole:$false `
+                 -title "Preparation Carte SD Ewon Flexy" `
+                 -version $Version `
+                 -company $Company `
+                 -description "Outil de préparation de carte SD pour Ewon Flexy" `
+                 -requireAdmin:$false `
+                 -noError:$false `
+                 -noOutput:$false
+
+          Write-Host "EXE généré: $exe"
+          Get-Item $exe | Format-List *
+
+      - name: Uploader l'artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrepareEwonSD
+          path: PrepareEwonSD_v*.exe
+          retention-days: 30
