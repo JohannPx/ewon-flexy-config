@@ -18,9 +18,9 @@ trap {
 $ErrorActionPreference = 'Stop'
 
 # Configuration GitHub (A MODIFIER avec votre repository)
-$GitHubRepo = "JohannPx/ewon-flexy-config"
+$GitHubRepo = "votre-username/nom-du-repo"
 $GitHubBranch = "main"
-$GitHubToken = "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"  # Remplacez par votre token si repo privé
+$GitHubToken = "ghp_VotreTokenGitHub"
 $LocalCacheDir = Join-Path $env:APPDATA "EwonFlexConfig"
 
 function Log { param([string]$msg) $ts = (Get-Date).ToString('s'); Write-Host ("$ts | $msg") }
