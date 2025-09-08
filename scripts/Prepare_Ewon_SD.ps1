@@ -28,24 +28,67 @@ function Log { param([string]$msg) $ts = (Get-Date).ToString('s'); Write-Host ("
 # ============================================================================
 # FONCTIONS POUR TELECHARGEMENT DES SOURCES
 # ============================================================================
+function Show-WebError {
+    param([Parameter(Mandatory=$true)]$Err)
+
+    try {
+        $ex   = $Err.Exception
+        $resp = $ex.Response
+        Write-Host "---- DIAGNOSTIC HTTP ----" -ForegroundColor Yellow
+        if ($resp) {
+            # HttpWebResponse
+            $statusCode = [int]$resp.StatusCode
+            $statusDesc = $resp.StatusDescription
+            $finalUri   = $resp.ResponseUri
+            Write-Host ("StatusCode: {0}" -f $statusCode)
+            Write-Host ("StatusDesc:  {0}" -f $statusDesc)
+            if ($finalUri) { Write-Host ("ResponseUri: {0}" -f $finalUri) }
+            # (Optionnel) lire un bout du corps pour indices
+            try {
+                $sr = New-Object System.IO.StreamReader($resp.GetResponseStream())
+                $body = $sr.ReadToEnd()
+                if ($body) {
+                    $snippet = $body.Substring(0, [Math]::Min(500, $body.Length))
+                    Write-Host "Body (snippet):" -ForegroundColor DarkYellow
+                    Write-Host $snippet
+                }
+            } catch {}
+        } else {
+            Write-Host "Pas d'objet Response sur l'exception." -ForegroundColor Yellow
+        }
+        Write-Host "-------------------------" -ForegroundColor Yellow
+    } catch { }
+}
 
 # Fonction pour télécharger le manifest
 function Get-Manifest {
+    # NOTE : raw.githubusercontent.com ignore l’Authorization sur repo privé → 404 masqué
     $manifestUrl = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/manifest.json"
+    $apiUrl      = "https://api.github.com/repos/$GitHubRepo/contents/manifest.json?ref=$GitHubBranch"
+
     try {
         Write-Host "Recuperation du catalogue des firmwares..." -ForegroundColor Gray
-        
-        # Headers pour repo privé
+        Write-Host "URL (RAW): $manifestUrl"
+        Write-Host "URL (API): $apiUrl"
+        Write-Host ("Auth header present: {0}" -f ([bool]$GitHubToken))
+
+        # Garde ton implémentation actuelle mais LOG l’URL utilisée :
+        # Ici je laisse ton appel tel quel (RAW) pour rester minimaliste.
         $headers = @{
             Authorization = "token $GitHubToken"
-            Accept = "application/vnd.github.v3.raw"
+            Accept        = "application/vnd.github.v3.raw"
         }
-        
-        $manifest = Invoke-RestMethod -Uri $manifestUrl -Headers $headers -UseBasicParsing
-        return $manifest
-    }
-    catch {
-        Write-Host "Impossible de recuperer le catalogue. Verification du cache local..." -ForegroundColor Yellow
+        # Important : -Verbose te montre le VERBOSE: GET https://... dans la console
+        Invoke-RestMethod -Uri $manifestUrl -Headers $headers -UseBasicParsing -Verbose
+
+        # Si tu préfères assurer l’auth sur repo privé, remplace la ligne ci-dessus par :
+        # Invoke-RestMethod -Uri $apiUrl -Headers $headers -UseBasicParsing -Verbose
+
+    } catch {
+        Write-Host "Impossible de recuperer le catalogue (en ligne)." -ForegroundColor Yellow
+        Show-WebError -Err $_
+        Write-Host "Verification du cache local..." -ForegroundColor Yellow
+
         $cachedManifest = Join-Path $LocalCacheDir "manifest.json"
         if (Test-Path $cachedManifest) {
             Write-Host "Utilisation du cache local" -ForegroundColor Yellow
@@ -54,6 +97,7 @@ function Get-Manifest {
         return $null
     }
 }
+
 
 # Fonction pour télécharger un firmware HMS
 function Download-HMSFirmware {
