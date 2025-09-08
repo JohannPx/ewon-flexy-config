@@ -1,5 +1,5 @@
 # PowerShell Script: Prepare Ewon Flexy SD card with online sources
-# Version: 2.2.0
+# Version: 3.0.0
 # Author: JPR
 # Date: 2025-01-10
 
@@ -59,7 +59,6 @@ function Get-Manifest {
 function Download-HMSFirmware {
     param(
         [string]$Version,
-        [string]$Model,
         [bool]$HasEbu
     )
     
@@ -67,41 +66,39 @@ function Download-HMSFirmware {
     $versionForUrl = $Version -replace '\.', '-'  # 15.0s2 -> 15-0s2
     $baseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
     
-    # Chemins locaux
-    $fwBaseDir = Join-Path $LocalCacheDir "Firmware"
+    # Structure simplifiée : firmware/version/fichiers
+    $fwBaseDir = Join-Path $LocalCacheDir "firmware"
     $versionDir = Join-Path $fwBaseDir $Version
-    $localFwDir = Join-Path $versionDir "Flexy $Model"
     
     # Vérifier si déjà téléchargé
-    $ebusPath = Join-Path $localFwDir "ewonfwr.ebus"
+    $ebusPath = Join-Path $versionDir "ewonfwr.ebus"
     if (Test-Path $ebusPath) {
-        Write-Host "  Firmware $Version pour Flexy $Model deja en cache" -ForegroundColor Gray
+        Write-Host "  Firmware $Version deja en cache" -ForegroundColor Gray
         return $true
     }
     
-    Write-Host "  Telechargement firmware $Version pour Flexy $Model..." -ForegroundColor Gray
+    Write-Host "  Telechargement firmware $Version..." -ForegroundColor Gray
     
     try {
         # Créer le dossier
-        if (-not (Test-Path $localFwDir)) {
-            New-Item -ItemType Directory -Path $localFwDir -Force | Out-Null
+        if (-not (Test-Path $versionDir)) {
+            New-Item -ItemType Directory -Path $versionDir -Force | Out-Null
         }
         
         # Télécharger le .ebus (toujours nécessaire) - AVEC _secure
         $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma_secure.ebus"
-        $ebusLocalPath = Join-Path $localFwDir "ewonfwr.ebus"
         
         Write-Host "    Telechargement .ebus..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $ebusUrl -OutFile $ebusLocalPath -UseBasicParsing
+        Invoke-WebRequest -Uri $ebusUrl -OutFile $ebusPath -UseBasicParsing
         
         # Télécharger le .ebu si nécessaire (pour migration 14.x -> 15.0.x) - SANS _secure
         if ($HasEbu) {
             $ebuUrl = "$baseUrl/er-$versionForUrl-arm-ma.ebu"
-            $ebuLocalPath = Join-Path $localFwDir "ewonfwr.ebu"
+            $ebuPath = Join-Path $versionDir "ewonfwr.ebu"
             
             Write-Host "    Telechargement .ebu (pour migration 14.x)..." -ForegroundColor Gray
             try {
-                Invoke-WebRequest -Uri $ebuUrl -OutFile $ebuLocalPath -UseBasicParsing
+                Invoke-WebRequest -Uri $ebuUrl -OutFile $ebuPath -UseBasicParsing
             }
             catch {
                 Write-Host "      Note: Fichier .ebu non disponible" -ForegroundColor Yellow
@@ -218,7 +215,7 @@ function Get-AvailableFirmwares {
         }
     }
     elseif (Test-Path $firmwarePath) {
-        # Mode offline : scanner le dossier local
+        # Mode cache : scanner le dossier local
         Get-ChildItem -Path $firmwarePath -Directory | ForEach-Object {
             $fwVersion = Parse-FirmwareVersion $_.Name
             if ($fwVersion) {
@@ -319,14 +316,58 @@ try {
     # Choix du mode
     Write-Host "=== Mode de fonctionnement ===" -ForegroundColor Cyan
     Write-Host "  [1] Mode ONLINE - Telecharger les dernieres sources (Internet requis)"
-    Write-Host "  [2] Mode OFFLINE - Utiliser les sources locales sur la carte SD"
+    Write-Host "  [2] Mode CACHE - Utiliser les sources deja telechargees"
+    Write-Host "  [3] Mode PREPARATION - Telecharger TOUS les firmwares pour usage futur"
     Write-Host ""
-    $mode = Read-Host "Choisissez 1 ou 2"
+    $mode = Read-Host "Choisissez 1, 2 ou 3"
     
     $manifest = $null
-    $SourceDir = ""
+    $SourceDir = $LocalCacheDir  # Toujours utiliser le cache
     
-    if ($mode -eq "1") {
+    if ($mode -eq "3") {
+        # MODE PREPARATION - Télécharger tout et quitter
+        Write-Host "`n=== Mode PREPARATION ===" -ForegroundColor Magenta
+        Write-Host "Ce mode va telecharger TOUS les firmwares pour un usage ulterieur" -ForegroundColor Yellow
+        
+        $confirm = Read-Host "Continuer ? (O/N)"
+        if ($confirm -ne "O" -and $confirm -ne "o") {
+            Write-Host "Annule" -ForegroundColor Red
+            exit
+        }
+        
+        # Obtenir le manifest
+        $manifest = Get-Manifest
+        if (-not $manifest) {
+            throw "Impossible de recuperer le catalogue en ligne"
+        }
+        
+        # Créer le cache et sauvegarder le manifest
+        if (-not (Test-Path $LocalCacheDir)) {
+            New-Item -ItemType Directory -Path $LocalCacheDir -Force | Out-Null
+        }
+        $manifestCache = Join-Path $LocalCacheDir "manifest.json"
+        $manifest | ConvertTo-Json -Depth 10 | Out-File $manifestCache -Encoding UTF8
+        
+        # Télécharger les configurations
+        Write-Host "`nTelechargement des configurations..." -ForegroundColor Cyan
+        Download-Configuration -Type "ethernet" -LocalPath "$LocalCacheDir\configurations\ethernet\backup.tar"
+        Download-Configuration -Type "4g" -LocalPath "$LocalCacheDir\configurations\4g\backup.tar"
+        Download-T2MKey -LocalPath "$LocalCacheDir\t2m\T2M.txt"
+        
+        # Télécharger TOUS les firmwares
+        Write-Host "`nTelechargement de tous les firmwares..." -ForegroundColor Cyan
+        foreach ($fw in $manifest.firmwares) {
+            $hasEbu = [bool]$fw.hasEbu
+            Download-HMSFirmware -Version $fw.version -HasEbu $hasEbu
+        }
+        
+        Write-Host "`n=== PREPARATION TERMINEE ===" -ForegroundColor Green
+        Write-Host "Cache cree dans: $LocalCacheDir" -ForegroundColor Green
+        Write-Host "Vous pouvez maintenant utiliser le Mode CACHE sans Internet" -ForegroundColor Green
+        Read-Host "`nAppuyez sur Entree pour fermer"
+        exit
+    }
+    elseif ($mode -eq "1") {
         # MODE ONLINE
         Write-Host "`n=== Mode ONLINE selectionne ===" -ForegroundColor Green
         
@@ -343,48 +384,48 @@ try {
         $manifestCache = Join-Path $LocalCacheDir "manifest.json"
         $manifest | ConvertTo-Json -Depth 10 | Out-File $manifestCache -Encoding UTF8
         
-        Write-Host "Catalogue des firmwares recupere (version $($manifest.version))" -ForegroundColor Green
-        
-        # Télécharger les configurations de base
+        # Télécharger les configurations
         Write-Host "`nTelechargement des configurations..." -ForegroundColor Cyan
+        Download-Configuration -Type "ethernet" -LocalPath "$LocalCacheDir\configurations\ethernet\backup.tar"
+        Download-Configuration -Type "4g" -LocalPath "$LocalCacheDir\configurations\4g\backup.tar"
+        Download-T2MKey -LocalPath "$LocalCacheDir\t2m\T2M.txt"
+    }
+    elseif ($mode -eq "2") {
+        # MODE CACHE
+        Write-Host "`n=== Mode CACHE selectionne ===" -ForegroundColor Yellow
         
-        # Construction correcte des chemins
-        $configBaseDir = Join-Path $LocalCacheDir "Configuration"
-        $configEthDir = Join-Path $configBaseDir "Internet par Ethernet"
-        $configEthPath = Join-Path $configEthDir "backup.tar"
+        if (-not (Test-Path $LocalCacheDir)) {
+            Write-Host "ERREUR: Aucun cache trouve dans $LocalCacheDir" -ForegroundColor Red
+            Write-Host "Utilisez d'abord le mode ONLINE ou PREPARATION" -ForegroundColor Red
+            throw "Cache non disponible"
+        }
         
-        $config4GDir = Join-Path $configBaseDir "Internet par modem 4G"
-        $config4GPath = Join-Path $config4GDir "backup.tar"
-        
-        $t2mBaseDir = Join-Path $LocalCacheDir "T2M Global Registration Key"
-        $t2mPath = Join-Path $t2mBaseDir "T2M.txt"
-        
-        Download-Configuration -Type "ethernet" -LocalPath $configEthPath
-        Download-Configuration -Type "4g" -LocalPath $config4GPath
-        Download-T2MKey -LocalPath $t2mPath
-        
-        $SourceDir = $LocalCacheDir
+        # Charger le manifest depuis le cache
+        $manifestCache = Join-Path $LocalCacheDir "manifest.json"
+        if (Test-Path $manifestCache) {
+            $manifest = Get-Content $manifestCache | ConvertFrom-Json
+            Write-Host "Utilisation du cache local" -ForegroundColor Yellow
+        } else {
+            throw "Manifest non trouve dans le cache"
+        }
     }
     else {
-        # MODE OFFLINE
-        Write-Host "`n=== Mode OFFLINE selectionne ===" -ForegroundColor Yellow
-        $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-        $SourceDir = $ScriptDir
+        throw "Choix invalide"
     }
     
-    # Définir les chemins
-    $CfgDir = Join-Path $SourceDir "Configuration"
-    $FwDir = Join-Path $SourceDir "Firmware"
-    $T2MDir = Join-Path $SourceDir "T2M Global Registration Key"
-    $CfgEthDir = Join-Path $CfgDir "Internet par Ethernet"
-    $Cfg4GDir = Join-Path $CfgDir "Internet par modem 4G"
+    # Définir les chemins avec la nouvelle structure
+    $CfgDir = Join-Path $SourceDir "configurations"
+    $FwDir = Join-Path $SourceDir "firmware"
+    $T2MDir = Join-Path $SourceDir "t2m"
+    $CfgEthDir = Join-Path $CfgDir "ethernet"
+    $Cfg4GDir = Join-Path $CfgDir "4g"
     
-    # Vérifications de base (mode offline uniquement)
-    if ($mode -ne "1") {
-        foreach($p in @($SourceDir,$CfgEthDir,$Cfg4GDir,$FwDir,$T2MDir)){
+    # Vérifications pour le mode cache
+    if ($mode -eq "2") {
+        foreach($p in @($CfgEthDir,$Cfg4GDir,$FwDir,$T2MDir)){
             if(-not (Test-Path $p)){ 
-                Log "Missing folder: $p"
-                throw "Missing folder: $p" 
+                Write-Host "Cache incomplet. Dossier manquant: $p" -ForegroundColor Red
+                throw "Utilisez le mode PREPARATION pour creer un cache complet"
             }
         }
     }
@@ -413,9 +454,10 @@ try {
     }
     Write-Host ""
     
-    # Configuration de l'Ewon
+    # Configuration simplifiée - PLUS DE CHOIX DE MODELE
     Write-Host "=== Configuration de l'Ewon ===" -ForegroundColor Magenta
-    $model = Select-FromList -Title "Modele Ewon" -Options @("202","203","205")
+    Write-Host "Note: Les firmwares sont communs a tous les modeles Flexy" -ForegroundColor Gray
+    Write-Host ""
     
     # Liste des firmwares actuels possibles
     $currentFwOptions = @("14.x")
@@ -425,7 +467,6 @@ try {
     $currentFwOptions = $currentFwOptions | Select-Object -Unique
     
     # Message d'aide pour le firmware actuel
-    Write-Host ""
     Write-Host "=== AIDE POUR DETERMINER LE FIRMWARE ACTUEL ===" -ForegroundColor Yellow
     Write-Host "Si vous ne connaissez pas la version du firmware actuel :" -ForegroundColor White
     Write-Host "  1. Mettez l'Ewon sous tension SANS carte SD" -ForegroundColor Gray
@@ -478,7 +519,7 @@ try {
         $fwInfo = $manifest.firmwares | Where-Object { $_.version -eq $targetFw }
         $hasEbu = [bool]$fwInfo.hasEbu
         
-        $success = Download-HMSFirmware -Version $targetFw -Model $model -HasEbu $hasEbu
+        $success = Download-HMSFirmware -Version $targetFw -HasEbu $hasEbu
         
         if (-not $success) {
             throw "Impossible de telecharger le firmware"
@@ -489,18 +530,18 @@ try {
     
     # Log des sélections
     if ($skipFirmwareUpdate) {
-        Log "Selections -> model=$model currentFw=$currentFw targetFw=NONE Internet=$profile"
+        Log "Selections -> currentFw=$currentFw targetFw=NONE Internet=$profile"
     } else {
-        Log "Selections -> model=$model currentFw=$currentFw targetFw=$targetFw Internet=$profile"
+        Log "Selections -> currentFw=$currentFw targetFw=$targetFw Internet=$profile"
     }
     
-    # Sélection du lecteur SD - AMELIORATION
+    # Sélection du lecteur SD
     Write-Host "`n=== Selection du lecteur de carte SD ===" -ForegroundColor Cyan
     Write-Host "Inserez votre carte SD et entrez sa lettre de lecteur" -ForegroundColor Yellow
     Write-Host "Exemples: E: ou F: ou G:" -ForegroundColor Gray
     $sdDrive = Read-Host "Lettre du lecteur SD"
     
-    # Ajouter :\ si l'utilisateur tape juste la lettre
+    # Formater correctement
     if ($sdDrive -match '^[A-Za-z]$') {
         $sdDrive = "${sdDrive}:\"
     }
@@ -532,35 +573,30 @@ try {
     $firmwareNote = ""
     
     if (-not $skipFirmwareUpdate) {
+        # Structure simplifiée : firmware/version/fichiers
         $targetFwDir = Join-Path $FwDir $targetFw
-        $fwModelDirName = switch ($model) { 
-            "202" {"Flexy 202"}
-            "203" {"Flexy 203"}
-            "205" {"Flexy 205"} 
-        }
-        $fwModelDir = Join-Path $targetFwDir $fwModelDirName
         
-        Log "Looking for model firmware in: $fwModelDir"
-        
-        if(-not (Test-Path $fwModelDir)){ 
-            Log "Missing firmware model folder: $fwModelDir"
-            throw "Missing firmware files for model $model in version $targetFw" 
+        if (-not (Test-Path $targetFwDir)) {
+            Log "Missing firmware folder: $targetFwDir"
+            throw "Firmware non trouve pour version $targetFw"
         }
         
-        $ebus = Join-Path $fwModelDir "ewonfwr.ebus"
-        $ebu = Join-Path $fwModelDir "ewonfwr.ebu"
+        Log "Looking for firmware in: $targetFwDir"
+        
+        $ebus = Join-Path $targetFwDir "ewonfwr.ebus"
+        $ebu = Join-Path $targetFwDir "ewonfwr.ebu"
         
         if($currentFw -eq "14.x"){ 
             if (Test-Path $ebu) {
                 $filesToCopy += @($ebus,$ebu)
-                $firmwareNote = "Migration de 14.x vers ${targetFw}: ewonfwr.ebus ET ewonfwr.ebu sont necessaires"
+                $firmwareNote = "Migration de 14.x vers ${targetFw}: ewonfwr.ebus ET ewonfwr.ebu necessaires"
             } else {
                 $filesToCopy += $ebus
-                $firmwareNote = "Migration de 14.x vers ${targetFw}: seul ewonfwr.ebus est copie (pas de .ebu disponible)"
+                $firmwareNote = "Migration de 14.x vers ${targetFw}: seul ewonfwr.ebus copie"
             }
         } else { 
             $filesToCopy += $ebus 
-            $firmwareNote = "Mise a jour de $currentFw vers ${targetFw}: seul ewonfwr.ebus est necessaire"
+            $firmwareNote = "Mise a jour de $currentFw vers ${targetFw}: seul ewonfwr.ebus necessaire"
         }
     } else {
         $firmwareNote = "Pas de mise a jour firmware - configuration uniquement"
@@ -594,21 +630,9 @@ try {
     $expectedFiles = @("backup.tar", "T2M.txt")
     
     if (-not $skipFirmwareUpdate) {
-        if($currentFw -eq "14.x"){
-            $targetFwDir = Join-Path $FwDir $targetFw
-            $fwModelDirName = switch ($model) { 
-                "202" {"Flexy 202"}
-                "203" {"Flexy 203"}
-                "205" {"Flexy 205"} 
-            }
-            $fwModelDir = Join-Path $targetFwDir $fwModelDirName
-            $ebu = Join-Path $fwModelDir "ewonfwr.ebu"
-            
-            if (Test-Path $ebu) {
-                $expectedFiles += @("ewonfwr.ebus", "ewonfwr.ebu")
-            } else {
-                $expectedFiles += @("ewonfwr.ebus")
-            }
+        $targetFwDir = Join-Path $FwDir $targetFw
+        if($currentFw -eq "14.x" -and (Test-Path (Join-Path $targetFwDir "ewonfwr.ebu"))) {
+            $expectedFiles += @("ewonfwr.ebus", "ewonfwr.ebu")
         } else {
             $expectedFiles += @("ewonfwr.ebus")
         }
@@ -654,14 +678,13 @@ ETAPE 2 : INSERTION DE LA CARTE (CONFIGURATION UNIQUEMENT)
 
 ETAPE 3 : DEMANDE D ACCES A DISTANCE
 Transmettez aux administrateurs/configurateurs les informations suivantes :
-- Numero de serie de l Ewon (visible sur l etiquette de l appareil)
-- Information carte SIM (numero MODEM)
+- Numero de serie de l Ewon
+- Information carte SIM
 - Identifiant IFS du site client
 - Nom souhaite pour l Ewon
-- Plan des equipements a connecter
 
 CONCLUSION
-Votre Ewon Flexy est maintenant configure et pret pour la telemaintenance.
+Votre Ewon Flexy est maintenant configure.
 '@
     } else {
         $proc = @'
@@ -689,14 +712,13 @@ ETAPE 3 : DEUXIEME INSERTION (CONFIGURATION)
 
 ETAPE 4 : DEMANDE D ACCES A DISTANCE
 Transmettez aux administrateurs/configurateurs les informations suivantes :
-- Numero de serie de l Ewon (visible sur l etiquette de l appareil)
-- Information carte SIM (numero MODEM)
+- Numero de serie de l Ewon
+- Information carte SIM
 - Identifiant IFS du site client
 - Nom souhaite pour l Ewon
-- Plan des equipements a connecter
 
 CONCLUSION
-Votre Ewon Flexy est maintenant configure et pret pour la telemaintenance.
+Votre Ewon Flexy est maintenant configure et a jour.
 '@
     }
     
