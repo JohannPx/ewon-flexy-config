@@ -79,14 +79,15 @@ function Get-Manifest {
             Accept        = "application/vnd.github.v3.raw"
         }
         # Important : -Verbose te montre le VERBOSE: GET https://... dans la console
-        Invoke-RestMethod -Uri $manifestUrl -Headers $headers -UseBasicParsing -Verbose
+        # Invoke-RestMethod -Uri $manifestUrl -Headers $headers -UseBasicParsing -Verbose
+        Invoke-RestMethod -Uri $manifestUrl -Headers $headers -UseBasicParsing
 
         # Si tu préfères assurer l’auth sur repo privé, remplace la ligne ci-dessus par :
         # Invoke-RestMethod -Uri $apiUrl -Headers $headers -UseBasicParsing -Verbose
 
     } catch {
         Write-Host "Impossible de recuperer le catalogue (en ligne)." -ForegroundColor Yellow
-        Show-WebError -Err $_
+        # Show-WebError -Err $_
         Write-Host "Verification du cache local..." -ForegroundColor Yellow
 
         $cachedManifest = Join-Path $LocalCacheDir "manifest.json"
