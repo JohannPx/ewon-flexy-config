@@ -54,10 +54,9 @@ jobs:
 
       - name: Download PS2EXE (standalone script)
         run: |
-          $url = "https://raw.githubusercontent.com/MScholtes/PS2EXE/master/ps2exe.ps1"
+          $url = "https://raw.githubusercontent.com/MScholtes/PS2EXE/master/Module/ps2exe.ps1"
           Invoke-WebRequest -Uri $url -OutFile "ps2exe.ps1" -UseBasicParsing
           if (-not (Test-Path "ps2exe.ps1")) { throw "Echec telechargement ps2exe.ps1" }
-          Get-Item ps2exe.ps1 | Format-List *
 
       - name: Compile using standalone PS2EXE
         run: |
@@ -65,23 +64,14 @@ jobs:
           $version = '${{ steps.ver.outputs.version }}'
           $out = "dist/PrepareEwonSD_v$version.exe"
 
-          # Metadonnees
           $title       = "Preparation Carte SD Ewon Flexy"
           $company     = "Clauger"
           $description = "Outil de preparation de carte SD pour Ewon Flexy (public, sans secrets)."
 
-          # ExecutionPolicy contournement
-          powershell -ExecutionPolicy Bypass -File ".\ps2exe.ps1" `
-            -inputFile  "scripts/Prepare_Ewon_SD.ps1" `
-            -outputFile $out `
-            -title      $title `
-            -company    $company `
-            -description $description `
-            -product    $title `
-            -version    $version `
-            -noConsole  0 `
-            -noError    0 `
-            -requireAdmin 0
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+
+          # ExecutionPolicy et dot-sourcing pour charger la fonction ps2exe
+          powershell -ExecutionPolicy Bypass -NoProfile -Command ". .\ps2exe.ps1; ps2exe -inputFile 'scripts/Prepare_Ewon_SD.ps1' -outputFile '$out' -title '$title' -company '$company' -description '$description' -product '$title' -version '$version' -noConsole:\$false -noError:\$false -requireAdmin:\$false"
 
           Write-Host "Contenu du dossier dist apres build :"
           Get-ChildItem dist -Recurse | Format-Table -AutoSize
