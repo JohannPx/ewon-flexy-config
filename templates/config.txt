@@ -1,0 +1,15 @@
+:
+:System
+Identification:{Identification}
+NtpEnable:1
+NtpServerAddr:{NtpServerAddr}
+NtpServerPort:{NtpServerPort}
+NtpInterval:1440
+Language:0
+Timezone:{Timezone}
+UTCExport:1
+DMSelect:0
+:
+:UserList
+"Id";"FirstName";"LastName";"Login";"Password";"Information";"Right";"EMA";"SMS";"AccessPage";"AccessDir";"CBEn";"CBMode";"CBPhNum"
+1;"";"";"Adm";{Password};"";-1;"";"";0;0;0;0;""
