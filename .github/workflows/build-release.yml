@@ -2,18 +2,8 @@ name: Release PrepareEwonSD
 
 on:
   push:
-    branches: [ "main" ]
-    paths:
-      - "scripts/Prepare_Ewon_SD.ps1"
-      - ".github/workflows/build-release.yml"
     tags:
       - "v*"
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version for the release (e.g. 3.3.3)"
-        required: false
-        type: string
 
 permissions:
   contents: write
@@ -21,33 +11,22 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-
     steps:
-      - name: "Checkout"
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: "Determine version"
+      - name: Determine version from tag
         id: ver
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            v="${{ github.event.inputs.version }}"
-          elif [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            v="${GITHUB_REF#refs/tags/}"
-          else
-            sha=$(echo "${GITHUB_SHA}" | cut -c1-7)
-            v="dev-$sha"
-          fi
-          echo "version=$v" >> $GITHUB_OUTPUT
-          echo "Version: $v"
+          v="${GITHUB_REF#refs/tags/}"
+          echo "version=${v}" >> $GITHUB_OUTPUT
 
-      - name: "Prepare dist folder"
-        run: mkdir -p dist
-
-      - name: "Copy script"
+      - name: Prepare dist
         run: |
-          cp scripts/Prepare_Ewon_SD.ps1 dist/PrepareEwonSD_${{ steps.ver.outputs.version }}.ps1
+          mkdir -p dist
+          cp scripts/Prepare_Ewon_SD.ps1 "dist/PrepareEwonSD_${{ steps.ver.outputs.version }}.ps1"
 
-      - name: "Create GitHub Release"
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: dist/*
