@@ -39,41 +39,54 @@ jobs:
             $v = "dev-$sha"
           }
           "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "Version: $v"
 
-      - name: Install ps2exe
+      - name: Sanity check - source present
         run: |
-          Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-          Install-Module -Name ps2exe -Scope CurrentUser -Force -AllowClobber
-          Import-Module ps2exe -Force
-          Get-Module ps2exe | Format-List Name,Version,Path
+          if (-not (Test-Path "scripts/Prepare_Ewon_SD.ps1")) {
+            Get-ChildItem -Recurse | Select-Object FullName
+            throw "scripts/Prepare_Ewon_SD.ps1 introuvable dans le repo."
+          }
+          Get-Item "scripts/Prepare_Ewon_SD.ps1" | Format-List *
 
-      - name: Compile to EXE
+      - name: Prepare dist folder
+        run: New-Item -ItemType Directory -Path dist -Force | Out-Null
+
+      - name: Download PS2EXE (standalone script)
+        run: |
+          $url = "https://raw.githubusercontent.com/MScholtes/PS2EXE/master/ps2exe.ps1"
+          Invoke-WebRequest -Uri $url -OutFile "ps2exe.ps1" -UseBasicParsing
+          if (-not (Test-Path "ps2exe.ps1")) { throw "Echec telechargement ps2exe.ps1" }
+          Get-Item ps2exe.ps1 | Format-List *
+
+      - name: Compile using standalone PS2EXE
         run: |
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.ver.outputs.version }}'
+          $out = "dist/PrepareEwonSD_v$version.exe"
 
-          New-Item -ItemType Directory -Path dist -Force | Out-Null
-
+          # Metadonnees
           $title       = "Preparation Carte SD Ewon Flexy"
           $company     = "Clauger"
           $description = "Outil de preparation de carte SD pour Ewon Flexy (public, sans secrets)."
-          $outfile     = "dist/PrepareEwonSD_v$version.exe"
 
-          Import-Module ps2exe -Force
+          # ExecutionPolicy contournement
+          powershell -ExecutionPolicy Bypass -File ".\ps2exe.ps1" `
+            -inputFile  "scripts/Prepare_Ewon_SD.ps1" `
+            -outputFile $out `
+            -title      $title `
+            -company    $company `
+            -description $description `
+            -product    $title `
+            -version    $version `
+            -noConsole  0 `
+            -noError    0 `
+            -requireAdmin 0
 
-          # Compatibilite des differentes versions du module
-          if (Get-Command Invoke-PS2EXE -ErrorAction SilentlyContinue) {
-            Invoke-PS2EXE -InputFile "scripts/Prepare_Ewon_SD.ps1" -OutputFile $outfile -Title $title -Company $company -Description $description -Product $title -Version $version -NoConsole:$false -NoError:$false -NoOutput:$false -RequireAdmin:$false
-          } elseif (Get-Command Invoke-ps2exe -ErrorAction SilentlyContinue) {
-            Invoke-ps2exe -InputFile "scripts/Prepare_Ewon_SD.ps1" -OutputFile $outfile -Title $title -Company $company -Description $description -Product $title -Version $version -NoConsole:$false -NoError:$false -NoOutput:$false -RequireAdmin:$false
-          } elseif (Get-Command ps2exe -ErrorAction SilentlyContinue) {
-            ps2exe -inputFile "scripts/Prepare_Ewon_SD.ps1" -outputFile $outfile -title $title -company $company -description $description -version $version -noConsole:$false -noError:$false -noOutput:$false -requireAdmin:$false
-          } else {
-            throw "Aucune commande ps2exe/Invoke-PS2EXE disponible."
-          }
-
-          Write-Host "Contenu de dist/:"
+          Write-Host "Contenu du dossier dist apres build :"
           Get-ChildItem dist -Recurse | Format-Table -AutoSize
+
+          if (-not (Test-Path $out)) { throw "EXE non genere: $out" }
 
       - name: Locate built EXE
         id: findexe
