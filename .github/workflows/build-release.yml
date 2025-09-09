@@ -8,7 +8,6 @@ on:
       - ".github/workflows/build-release.yml"
     tags:
       - "v*"
-
   workflow_dispatch:
     inputs:
       version:
@@ -46,6 +45,7 @@ jobs:
           Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
           Install-Module -Name ps2exe -Scope CurrentUser -Force -AllowClobber
           Import-Module ps2exe -Force
+          Get-Module ps2exe | Format-List Name,Version,Path
 
       - name: Compile to EXE
         run: |
@@ -57,30 +57,37 @@ jobs:
           $title       = "Preparation Carte SD Ewon Flexy"
           $company     = "Clauger"
           $description = "Outil de preparation de carte SD pour Ewon Flexy (public, sans secrets)."
-          $copyright   = "© $(Get-Date -Format yyyy) Clauger"
+          $outfile     = "dist/PrepareEwonSD_v$version.exe"
 
           Import-Module ps2exe -Force
 
-          Invoke-PS2EXE `
-            -InputFile  "scripts/Prepare_Ewon_SD.ps1" `
-            -OutputFile "dist/PrepareEwonSD_v$version.exe" `
-            -Title      $title `
-            -Company    $company `
-            -Description $description `
-            -Product    $title `
-            -Version    $version `
-            -NoConsole:$false `
-            -NoError:$false `
-            -NoOutput:$false `
-            -RequireAdmin:$false
+          # Compatibilite des differentes versions du module
+          if (Get-Command Invoke-PS2EXE -ErrorAction SilentlyContinue) {
+            Invoke-PS2EXE -InputFile "scripts/Prepare_Ewon_SD.ps1" -OutputFile $outfile -Title $title -Company $company -Description $description -Product $title -Version $version -NoConsole:$false -NoError:$false -NoOutput:$false -RequireAdmin:$false
+          } elseif (Get-Command Invoke-ps2exe -ErrorAction SilentlyContinue) {
+            Invoke-ps2exe -InputFile "scripts/Prepare_Ewon_SD.ps1" -OutputFile $outfile -Title $title -Company $company -Description $description -Product $title -Version $version -NoConsole:$false -NoError:$false -NoOutput:$false -RequireAdmin:$false
+          } elseif (Get-Command ps2exe -ErrorAction SilentlyContinue) {
+            ps2exe -inputFile "scripts/Prepare_Ewon_SD.ps1" -outputFile $outfile -title $title -company $company -description $description -version $version -noConsole:$false -noError:$false -noOutput:$false -requireAdmin:$false
+          } else {
+            throw "Aucune commande ps2exe/Invoke-PS2EXE disponible."
+          }
 
-          Write-Host "Built dist/PrepareEwonSD_v$version.exe"
+          Write-Host "Contenu de dist/:"
+          Get-ChildItem dist -Recurse | Format-Table -AutoSize
+
+      - name: Locate built EXE
+        id: findexe
+        run: |
+          $exe = Get-ChildItem -Path dist -Filter *.exe -Recurse | Select-Object -First 1
+          if (-not $exe) { throw "EXE introuvable dans dist/ apres compilation." }
+          "file=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Host "EXE trouve: $($exe.FullName)"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: PrepareEwonSD_${{ steps.ver.outputs.version }}
-          path: dist/PrepareEwonSD_v${{ steps.ver.outputs.version }}.exe
+          path: ${{ steps.findexe.outputs.file }}
           if-no-files-found: error
 
   release:
