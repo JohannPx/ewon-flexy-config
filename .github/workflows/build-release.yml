@@ -1,0 +1,114 @@
+name: Build & Release PrepareEwonSD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "scripts/Prepare_Ewon_SD.ps1"
+      - ".github/workflows/build-release.yml"
+
+  push:
+    tags:
+      - "v*"
+
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version pour le binaire (ex: 3.3.1)"
+        required: false
+        type: string
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine version
+        id: ver
+        run: |
+          if ('${{ github.event.inputs.version }}') {
+            $v = '${{ github.event.inputs.version }}'
+          } elseif ("${{ github.ref }}".StartsWith("refs/tags/")) {
+            $tag = "${{ github.ref }}".Substring("refs/tags/".Length)
+            $v = $tag.TrimStart('v')
+          } else {
+            $sha = "${{ github.sha }}".Substring(0,7)
+            $v = "dev-$sha"
+          }
+          "version=$v" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Install ps2exe
+        run: |
+          Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
+          Install-Module -Name ps2exe -Scope CurrentUser -Force -AllowClobber
+          Import-Module ps2exe -Force
+
+      - name: Compile to EXE
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '${{ steps.ver.outputs.version }}'
+
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+
+          $title       = "Preparation Carte SD Ewon Flexy"
+          $company     = "Clauger"
+          $description = "Outil de preparation de carte SD pour Ewon Flexy (public, sans secrets)."
+          $copyright   = "© $(Get-Date -Format yyyy) Clauger"
+
+          Import-Module ps2exe -Force
+
+          Invoke-PS2EXE `
+            -InputFile  "scripts/Prepare_Ewon_SD.ps1" `
+            -OutputFile "dist/PrepareEwonSD_v$version.exe" `
+            -Title      $title `
+            -Company    $company `
+            -Description $description `
+            -Product    $title `
+            -Version    $version `
+            -NoConsole:$false `
+            -NoError:$false `
+            -NoOutput:$false `
+            -RequireAdmin:$false
+
+          Write-Host "Built dist/PrepareEwonSD_v$version.exe"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PrepareEwonSD_${{ steps.ver.outputs.version }}
+          path: dist/PrepareEwonSD_v${{ steps.ver.outputs.version }}.exe
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [ build ]
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Find EXE
+        id: findexe
+        run: |
+          EXE=$(ls dist/**/*.exe | head -n 1)
+          if [ -z "$EXE" ]; then
+            echo "EXE introuvable"; exit 1
+          fi
+          echo "file=$EXE" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.findexe.outputs.file }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
