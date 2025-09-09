@@ -70,8 +70,18 @@ jobs:
 
           New-Item -ItemType Directory -Path dist -Force | Out-Null
 
-          # ExecutionPolicy et dot-sourcing pour charger la fonction ps2exe
-          powershell -ExecutionPolicy Bypass -NoProfile -Command ". .\ps2exe.ps1; ps2exe -inputFile 'scripts/Prepare_Ewon_SD.ps1' -outputFile '$out' -title '$title' -company '$company' -description '$description' -product '$title' -version '$version' -noConsole:\$false -noError:\$false -requireAdmin:\$false"
+          # Appel DIRECT du script avec -File (pas de dot-sourcing, pas d'appel de fonction)
+          powershell -ExecutionPolicy Bypass -NoProfile -File ".\ps2exe.ps1" `
+            -inputFile  "scripts/Prepare_Ewon_SD.ps1" `
+            -outputFile $out `
+            -title      $title `
+            -company    $company `
+            -description $description `
+            -product    $title `
+            -version    $version `
+            -noConsole  0 `
+            -noError    0 `
+            -requireAdmin 0
 
           Write-Host "Contenu du dossier dist apres build :"
           Get-ChildItem dist -Recurse | Format-Table -AutoSize
