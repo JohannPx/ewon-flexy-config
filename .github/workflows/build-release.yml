@@ -6,8 +6,6 @@ on:
     paths:
       - "scripts/Prepare_Ewon_SD.ps1"
       - ".github/workflows/build-release.yml"
-
-  push:
     tags:
       - "v*"
 
