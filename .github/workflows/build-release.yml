@@ -52,87 +52,98 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType Directory -Path dist -Force | Out-Null
 
-      - name: "Download PS2EXE script (official)"
+      - name: "Generate C# wrapper from PS1 (embedded Base64)"
         shell: pwsh
-        run: |
-          $url = "https://raw.githubusercontent.com/MScholtes/PS2EXE/master/Module/ps2exe.ps1"
-          Invoke-WebRequest -Uri $url -OutFile "ps2exe.ps1" -UseBasicParsing
-          if (-not (Test-Path "ps2exe.ps1")) { throw "Failed to download ps2exe.ps1" }
-          Get-Item ps2exe.ps1 | Format-List *
-
-      - name: "Compile using Windows PowerShell 5.1 with fallbacks and logs"
-        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
           $version = '${{ steps.ver.outputs.version }}'
-          $OutDir  = "dist"
-          $OutFile = Join-Path $OutDir ("PrepareEwonSD_v{0}.exe" -f $version)
-          $Src     = "scripts/Prepare_Ewon_SD.ps1"
-          if (-not (Test-Path $Src)) { throw "Source not found: $Src" }
-          if (-not (Test-Path $OutDir)) { New-Item -ItemType Directory -Path $OutDir -Force | Out-Null }
+          $ps1Path = "scripts/Prepare_Ewon_SD.ps1"
+          $b64 = [Convert]::ToBase64String([IO.File]::ReadAllBytes($ps1Path))
 
-          $Transcript = Join-Path $Env:RUNNER_TEMP "ps2exe-transcript.txt"
-          Start-Transcript -Path $Transcript -Force | Out-Null
+          $cs = @"
+          using System;
+          using System.Diagnostics;
+          using System.IO;
+          using System.Reflection;
+          using System.Text;
 
-          Write-Host "=== ENV ==="
-          Write-Host "PSVersion: $($PSVersionTable.PSVersion)"
-          Write-Host "PWD: $(Get-Location)"
-          Get-ChildItem -Force | Select-Object Mode,Length,Name | Format-Table -AutoSize
+          [assembly: AssemblyTitle("Preparation Carte SD Ewon Flexy")]
+          [assembly: AssemblyProduct("Preparation Carte SD Ewon Flexy")]
+          [assembly: AssemblyCompany("Clauger")]
+          [assembly: AssemblyDescription("Tool to prepare SD card for Ewon Flexy (public, no secrets).")]
+          [assembly: AssemblyVersion("0.0.0.0")] // replaced at link time below if needed
 
-          Write-Host "=== Source ==="
-          Get-Item $Src | Format-List *
+          namespace Wrapper
+          {
+              internal static class Program
+              {
+                  [STAThread]
+                  private static int Main(string[] args)
+                  {
+                      try
+                      {
+                          string base64 = @"{B64}";
+                          byte[] bytes = Convert.FromBase64String(base64);
+                          string scriptPath = Path.Combine(Path.GetTempPath(), "Prepare_Ewon_SD.ps1");
+                          File.WriteAllBytes(scriptPath, bytes);
 
-          $title       = "Preparation Carte SD Ewon Flexy"
-          $company     = "Clauger"
-          $description = "Tool to prepare SD card for Ewon Flexy (public, no secrets)."
+                          // Run with Windows PowerShell for max compatibility
+                          var psi = new ProcessStartInfo
+                          {
+                              FileName = "powershell.exe",
+                              Arguments = "-NoProfile -ExecutionPolicy Bypass -File \"" + scriptPath + "\"",
+                              UseShellExecute = false
+                          };
 
-          $built = $false
+                          var p = Process.Start(psi);
+                          p.WaitForExit();
+                          return p.ExitCode;
+                      }
+                      catch (Exception ex)
+                      {
+                          // Fallback: write error to a temp log and pause
+                          string log = Path.Combine(Path.GetTempPath(), "Prepare_Ewon_SD_wrapper_error.txt");
+                          File.WriteAllText(log, ex.ToString(), Encoding.UTF8);
+                          try
+                          {
+                              Console.Error.WriteLine("Wrapper error. See: " + log);
+                              Console.Error.WriteLine(ex.ToString());
+                              Console.Error.WriteLine("Press Enter to exit...");
+                              Console.ReadLine();
+                          } catch {}
+                          return 1;
+                      }
+                  }
+              }
+          }
+          "@
+          $cs = $cs.Replace("{B64}", $b64)
+          Set-Content -Path "wrapper.cs" -Value $cs -Encoding UTF8
 
-          # Attempt 1: PSGallery module under WinPS 5.1
-          try {
-            Write-Host ">> Attempt 1: PSGallery ps2exe module (Invoke-ps2exe)"
-            powershell.exe -NoProfile -ExecutionPolicy Bypass -Command @'
-              $ErrorActionPreference = "Stop"
-              Set-PSRepository -Name "PSGallery" -InstallationPolicy Trusted
-              Install-Module -Name ps2exe -Scope CurrentUser -Force -AllowClobber
-              Import-Module ps2exe -Force
-              Write-Host "Loaded module:"
-              Get-Module ps2exe | Format-List Name,Version,Path
-              Invoke-ps2exe -inputFile "scripts/Prepare_Ewon_SD.ps1" -outputFile "dist/PrepareEwonSD_v${{ steps.ver.outputs.version }}.exe" -title "Preparation Carte SD Ewon Flexy" -company "Clauger" -description "Tool to prepare SD card for Ewon Flexy (public, no secrets)." -product "Preparation Carte SD Ewon Flexy" -version "${{ steps.ver.outputs.version }}" -noConsole:$false -noError:$false -requireAdmin:$false -verbose
-          '@
-                      if (Test-Path $OutFile) { $built = $true }
-                    } catch {
-                      Write-Warning "Attempt 1 failed: $($_.Exception.Message)"
-                    }
+          Write-Host "Generated wrapper.cs:"
+          Get-Item wrapper.cs | Format-List *
 
-                    # Attempt 2: Standalone script
-                    if (-not $built) {
-                      Write-Host ">> Attempt 2: Standalone script ps2exe.ps1"
-                      powershell.exe -NoProfile -ExecutionPolicy Bypass -File ".\ps2exe.ps1" `
-                        -inputFile  $Src `
-                        -outputFile $OutFile `
-                        -title      $title `
-                        -company    $company `
-                        -description $description `
-                        -product    $title `
-                        -version    $version `
-                        -noConsole  0 `
-                        -noError    0 `
-                        -requireAdmin 0 `
-                        -verbose
-                      if (Test-Path $OutFile) { $built = $true }
-                    }
+      - name: "Compile C# wrapper to EXE (.NET Framework csc.exe)"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = '${{ steps.ver.outputs.version }}'
+          $out = "dist/PrepareEwonSD_v$version.exe"
 
-                    Write-Host "=== dist listing ==="
-                    Get-ChildItem $OutDir -Recurse -ErrorAction SilentlyContinue | Format-Table -AutoSize
+          # Try Framework64 first, then Framework (x86) as fallback
+          $csc64 = "$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+          $csc86 = "$env:WINDIR\Microsoft.NET\Framework\v4.0.30319\csc.exe"
+          $csc = if (Test-Path $csc64) { $csc64 } elseif (Test-Path $csc86) { $csc86 } else { $null }
+          if (-not $csc) { throw "csc.exe not found on runner." }
 
-                    Stop-Transcript | Out-Null
+          Write-Host "Using compiler: $csc"
+          # /target:winexe => no extra console window; use /target:exe if you prefer a console
+          & $csc /nologo /target:winexe /platform:anycpu /out:$out wrapper.cs
 
-                    if (-not $built -or -not (Test-Path $OutFile)) {
-                      Write-Host "==== Transcript tail ===="
-                      Get-Content $Transcript -Tail 100
-                      throw "EXE not generated: $OutFile"
-                    }
+          Write-Host "dist content:"
+          Get-ChildItem dist -Recurse | Format-Table -AutoSize
+
+          if (-not (Test-Path $out)) { throw "EXE not generated: $out" }
 
       - name: "Locate built EXE"
         id: findexe
