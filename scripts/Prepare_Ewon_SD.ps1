@@ -1,7 +1,7 @@
-# PowerShell Script: Prepare Ewon Flexy SD card with online sources (PUBLIC)
-# Version: 3.3.1
+# PowerShell Script: Prepare Ewon Flexy SD card with dynamic backup.tar generation
+# Version: 4.0.0
 # Author: JPR
-# Date: 2025-09-09
+# Date: 2025-09-22
 
 # =================== GENERAL SETTINGS ===================
 Set-StrictMode -Version Latest
@@ -14,14 +14,47 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 # TLS 1.2
 try { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 } catch {}
 
-$Host.UI.RawUI.WindowTitle = "Preparation Carte SD Ewon Flexy"
+$Host.UI.RawUI.WindowTitle = "Preparation Carte SD Ewon Flexy - Generation Dynamique"
 
 # ======= GITHUB CONFIG (PUBLIC REPO - NO TOKEN) =======
 $GitHubRepo   = "JohannPx/ewon-flexy-config"   # owner/repo
 $GitHubBranch = "main"
 
-# Local cache folder (manifest, configs, firmwares ONLY)
+# Local cache folder (manifest, templates, firmwares ONLY)
 $LocalCacheDir = Join-Path $env:APPDATA "EwonFlexConfig"
+
+# =================== PARAMETER DEFINITIONS ===================
+# Based on the Excel template, defining all parameters and their properties
+$ParameterDefinitions = @(
+    # Common parameters (always asked)
+    @{File="comcfg.txt"; Param="EthIP"; Default="192.168.253.254"; Description="LAN IP address"; Type="IPv4"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="EthMask"; Default="255.255.255.0"; Description="LAN Subnet mask"; Type="IPv4"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="config.txt"; Param="Identification"; Default="Clauger auto registered Ewon"; Description="Ewon Identification"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="config.txt"; Param="NtpServerAddr"; Default="ntp.talk2m.com"; Description="NTP Server Address"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="config.txt"; Param="NtpServerPort"; Default="123"; Description="The port of the remote NTP server"; Type="Integer"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="config.txt"; Param="Timezone"; Default="Europe/Paris"; Description="The configuration of the Ewon timezone"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="config.txt"; Param="Password"; Default="adm"; Description="User Password (max 24 chars)"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="program.bas"; Param="accountName"; Default=""; Description="Data account name"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="program.bas"; Param="accountAuthorization"; Default=""; Description="Data authorization"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    
+    # Connection type specific (automatic values)
+    @{File="comcfg.txt"; Param="WANCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="2"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="WANItfProt"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="3"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
+    
+    # Ethernet specific
+    @{File="comcfg.txt"; Param="UseBOOTP2"; Default="2"; Description="WAN IP Address Allocation (0=Static, 2=DHCP)"; Type="Choice"; Choices=@("0","2"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null},
+    @{File="comcfg.txt"; Param="EthIpAddr2"; Default=""; Description="WAN IP address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="EthIpMask2"; Default="255.255.255.0"; Description="WAN Subnet mask"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Default WAN gateway"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="Ethernet DNS 1 IP address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="Ethernet DNS 2 IP address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    
+    # 4G specific
+    @{File="comcfg.txt"; Param="PIN"; Default="0000"; Description="Modem PIN Code (4 digits)"; Type="PIN"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="PdpApn"; Default="orange"; Description="GPRS PDP: Access Point Name"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="PPPClUserName1"; Default="orange"; Description="APN Username"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="PPPClPassword1"; Default="orange"; Description="APN Password"; Type="Password"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null}
+)
 
 # =================== UTILS & LOGGING ===================
 function Log { param([string]$msg) $ts = (Get-Date).ToString('s'); Write-Host ("{0} | {1}" -f $ts, $msg) }
@@ -39,8 +72,228 @@ function Convert-SecureToPlain {
     }
 }
 
+# =================== TEMPLATE DOWNLOADS ===================
+function Download-Template {
+    param(
+        [Parameter(Mandatory)][string]$FileName,
+        [Parameter(Mandatory)][string]$LocalPath
+    )
+    
+    $url = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/templates/$FileName"
+    try {
+        New-Dir (Split-Path $LocalPath) | Out-Null
+        Write-Host "Telechargement template $FileName..." -ForegroundColor Gray
+        Invoke-WebRequest -Uri $url -OutFile $LocalPath -UseBasicParsing
+        Write-Host "  [OK]" -ForegroundColor Green
+        return $true
+    } catch {
+        Write-Host "  [ERREUR] $($_.Exception.Message)" -ForegroundColor Red
+        return $false
+    }
+}
+
+# =================== PARAMETER COLLECTION ===================
+function Validate-IPv4 {
+    param([string]$ip)
+    return $ip -match '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+}
+
+function Validate-PIN {
+    param([string]$pin)
+    return $pin -match '^\d{4}$'
+}
+
+function Prompt-Parameter {
+    param(
+        [Parameter(Mandatory)]$ParamDef,
+        [hashtable]$CollectedParams = @{}
+    )
+    
+    # Check condition if exists
+    if ($ParamDef.Condition) {
+        $condParts = $ParamDef.Condition -split '='
+        if ($condParts.Count -eq 2) {
+            $condParam = $condParts[0]
+            $condValue = $condParts[1]
+            if ($CollectedParams[$condParam] -ne $condValue) {
+                # Condition not met, use default
+                return $ParamDef.Default
+            }
+        }
+    }
+    
+    $prompt = "$($ParamDef.Description)"
+    if ($ParamDef.Default) {
+        $prompt += " [defaut: $($ParamDef.Default)]"
+    }
+    
+    do {
+        $valid = $true
+        
+        switch ($ParamDef.Type) {
+            "Password" {
+                do {
+                    $sec = Read-Host $prompt -AsSecureString
+                    if (-not $sec -or $sec.Length -eq 0) { 
+                        if ($ParamDef.Default) {
+                            return $ParamDef.Default
+                        }
+                        Write-Host "Valeur obligatoire." -ForegroundColor Red 
+                    }
+                } until ($sec -and $sec.Length -gt 0 -or $ParamDef.Default)
+                
+                $value = if ($sec -and $sec.Length -gt 0) { Convert-SecureToPlain -Secure $sec } else { $ParamDef.Default }
+            }
+            
+            "Choice" {
+                Write-Host $prompt -ForegroundColor Cyan
+                if ($ParamDef.Choices -and $ParamDef.Choices.Count -gt 0) {
+                    for ($i = 0; $i -lt $ParamDef.Choices.Count; $i++) {
+                        $desc = if ($ParamDef.Choices[$i] -eq "0") { "Static" } elseif ($ParamDef.Choices[$i] -eq "2") { "DHCP" } else { $ParamDef.Choices[$i] }
+                        Write-Host "  [$($i+1)] $desc"
+                    }
+                    do {
+                        $choice = Read-Host "Choix (1-$($ParamDef.Choices.Count))"
+                    } while (-not ($choice -as [int]) -or [int]$choice -lt 1 -or [int]$choice -gt $ParamDef.Choices.Count)
+                    $value = $ParamDef.Choices[[int]$choice - 1]
+                } else {
+                    # Fallback if no choices defined
+                    $value = Read-Host $prompt
+                    if (-not $value -and $ParamDef.Default) {
+                        $value = $ParamDef.Default
+                    }
+                }
+            }
+            
+            "IPv4" {
+                $value = Read-Host $prompt
+                if (-not $value -and $ParamDef.Default) {
+                    $value = $ParamDef.Default
+                } elseif ($value) {
+                    if (-not (Validate-IPv4 $value)) {
+                        Write-Host "Adresse IP invalide. Format: xxx.xxx.xxx.xxx" -ForegroundColor Red
+                        $valid = $false
+                    }
+                }
+            }
+            
+            "PIN" {
+                $value = Read-Host $prompt
+                if (-not $value -and $ParamDef.Default) {
+                    $value = $ParamDef.Default
+                } elseif ($value) {
+                    if (-not (Validate-PIN $value)) {
+                        Write-Host "Code PIN invalide. 4 chiffres requis." -ForegroundColor Red
+                        $valid = $false
+                    }
+                }
+            }
+            
+            "Integer" {
+                $value = Read-Host $prompt
+                if (-not $value -and $ParamDef.Default) {
+                    $value = $ParamDef.Default
+                } elseif ($value) {
+                    if (-not ($value -as [int])) {
+                        Write-Host "Entier requis." -ForegroundColor Red
+                        $valid = $false
+                    }
+                }
+            }
+            
+            default {
+                $value = Read-Host $prompt
+                if (-not $value -and $ParamDef.Default) {
+                    $value = $ParamDef.Default
+                }
+            }
+        }
+        
+    } while (-not $valid)
+    
+    return $value
+}
+
+# =================== TAR CREATION ===================
+function Create-TarArchive {
+    param(
+        [Parameter(Mandatory)][string[]]$Files,
+        [Parameter(Mandatory)][string]$OutputPath
+    )
+    
+    try {
+        # Use built-in tar if available (Windows 10+)
+        $tarExe = Get-Command tar -ErrorAction SilentlyContinue
+        if ($tarExe) {
+            # Create tar using Windows tar
+            $tempDir = Join-Path $env:TEMP ("ewon_tar_" + (Get-Date -Format "yyyyMMddHHmmss"))
+            New-Dir $tempDir | Out-Null
+            
+            # Copy files to temp dir with correct names
+            foreach ($file in $Files) {
+                Copy-Item -Path $file -Destination $tempDir -Force
+            }
+            
+            Push-Location $tempDir
+            & tar -cf $OutputPath *
+            Pop-Location
+            
+            Remove-Item $tempDir -Recurse -Force
+            return $true
+        } else {
+            # Fallback: Create simple tar format manually
+            Write-Host "Windows tar non disponible, creation manuelle..." -ForegroundColor Yellow
+            
+            $stream = [System.IO.FileStream]::new($OutputPath, [System.IO.FileMode]::Create)
+            $writer = [System.IO.BinaryWriter]::new($stream)
+            
+            foreach ($file in $Files) {
+                $fileInfo = Get-Item $file
+                $fileName = $fileInfo.Name
+                $fileSize = $fileInfo.Length
+                $fileContent = [System.IO.File]::ReadAllBytes($file)
+                
+                # Create TAR header (simplified)
+                $header = New-Object byte[] 512
+                
+                # File name (max 100 bytes)
+                $nameBytes = [System.Text.Encoding]::ASCII.GetBytes($fileName)
+                [Array]::Copy($nameBytes, 0, $header, 0, [Math]::Min($nameBytes.Length, 100))
+                
+                # File mode (100644 in octal = 33188 decimal)
+                $modeBytes = [System.Text.Encoding]::ASCII.GetBytes("100644 ")
+                [Array]::Copy($modeBytes, 0, $header, 100, $modeBytes.Length)
+                
+                # File size in octal
+                $sizeOctal = [Convert]::ToString($fileSize, 8).PadLeft(11, '0') + ' '
+                $sizeBytes = [System.Text.Encoding]::ASCII.GetBytes($sizeOctal)
+                [Array]::Copy($sizeBytes, 0, $header, 124, $sizeBytes.Length)
+                
+                # Write header and file content
+                $writer.Write($header)
+                $writer.Write($fileContent)
+                
+                # Padding to 512 bytes
+                $padding = 512 - ($fileSize % 512)
+                if ($padding -ne 512) {
+                    $writer.Write((New-Object byte[] $padding))
+                }
+            }
+            
+            # Write end of archive (2 blocks of 512 zeros)
+            $writer.Write((New-Object byte[] 1024))
+            
+            $writer.Close()
+            $stream.Close()
+            return $true
+        }
+    } catch {
+        Write-Host "Erreur lors de la creation du TAR: $_" -ForegroundColor Red
+        return $false
+    }
+}
+
 # =================== T2M (ASK JUST BEFORE SD, NO CACHE) ===================
-# NB: appelee seulement en modes 1 et 2 (pas en 3)
 function Prompt-T2M {
     Write-Host ""
     Write-Host "=== Donnees Talk2M (T2M.txt sera ECRIT UNIQUEMENT SUR LA SD) ===" -ForegroundColor Cyan
@@ -89,27 +342,9 @@ function Get-Manifest {
     }
 }
 
-function Download-Configuration {
-    param([Parameter(Mandatory)][ValidateSet("ethernet","4g")] [string]$Type,
-          [Parameter(Mandatory)][string]$LocalPath)
-
-    $url = "https://raw.githubusercontent.com/$GitHubRepo/$GitHubBranch/configurations/$Type/backup.tar"
-    try {
-        New-Dir (Split-Path $LocalPath) | Out-Null
-        Write-Host "Telechargement configuration $Type..." -ForegroundColor Gray
-        Invoke-WebRequest -Uri $url -OutFile $LocalPath -UseBasicParsing
-        Write-Host "  [OK]" -ForegroundColor Green
-        return $true
-    } catch {
-        Write-Host "  [ERREUR] $($_.Exception.Message)" -ForegroundColor Red
-        return $false
-    }
-}
-
 # =================== FIRMWARE HMS (PUBLIC HMS SITE) ===================
 function Parse-FirmwareVersion {
     param([string]$version)
-    # Supporte 15.0s2 ou 15.6
     if ($version -match '^(\d+)\.(\d+)s?(\d+)?$') {
         $maj = [int]$Matches[1]
         $min = [int]$Matches[2]
@@ -123,7 +358,6 @@ function Download-HMSFirmware {
     param([Parameter(Mandatory)][string]$Version,
           [Parameter(Mandatory)][bool]$HasEbu)
 
-    # 15.0s2 -> er-15-0s2-arm-ma_secure.ebus
     $versionForUrl = $Version -replace '\.', '-'
     $baseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
 
@@ -138,11 +372,9 @@ function Download-HMSFirmware {
 
     Write-Host "  Telechargement firmware $Version..." -ForegroundColor Gray
     try {
-        # .ebus (secure)
         $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma_secure.ebus"
         Invoke-WebRequest -Uri $ebusUrl -OutFile $ebusPath -UseBasicParsing
 
-        # .ebu (pivot 14.x) si necessaire
         if ($HasEbu) {
             $ebuUrl = "$baseUrl/er-$versionForUrl-arm-ma.ebu"
             $ebuPath = Join-Path $versionDir "ewonfwr.ebu"
@@ -211,15 +443,15 @@ function Select-FromList {
 try {
     $headerBorder = "=" * 70
     Write-Host $headerBorder -ForegroundColor DarkCyan
-    Write-Host "                  PREPARATION CARTE SD EWON FLEXY" -ForegroundColor Cyan
+    Write-Host "         PREPARATION CARTE SD EWON FLEXY - GENERATION DYNAMIQUE" -ForegroundColor Cyan
     Write-Host $headerBorder -ForegroundColor DarkCyan
     Write-Host ""
 
     # Mode selection
     Write-Host "=== Mode de fonctionnement ===" -ForegroundColor Cyan
-    Write-Host "  [1] ONLINE       - Telecharger manifest + configs (Internet requis)"
+    Write-Host "  [1] ONLINE       - Telecharger manifest + templates (Internet requis)"
     Write-Host "  [2] CACHE        - Utiliser cache local existant"
-    Write-Host "  [3] PREPARATION  - Telecharger TOUT pour usage offline (manifest, configs, firmwares)"
+    Write-Host "  [3] PREPARATION  - Telecharger TOUT pour usage offline (manifest, templates, firmwares)"
     Write-Host ""
     $mode = Read-Host "Choisissez 1, 2 ou 3"
 
@@ -242,10 +474,12 @@ try {
         # Save manifest in cache
         ($manifest | ConvertTo-Json -Depth 10) | Out-File (Join-Path $LocalCacheDir "manifest.json") -Encoding UTF8
 
-        # Configs
-        Write-Host "`nTelechargement des configurations..." -ForegroundColor Cyan
-        Download-Configuration -Type "ethernet" -LocalPath (Join-Path $LocalCacheDir "configurations\ethernet\backup.tar") | Out-Null
-        Download-Configuration -Type "4g"      -LocalPath (Join-Path $LocalCacheDir "configurations\4g\backup.tar")       | Out-Null
+        # Templates
+        Write-Host "`nTelechargement des templates..." -ForegroundColor Cyan
+        $templatesDir = New-Dir (Join-Path $LocalCacheDir "templates")
+        Download-Template -FileName "program.bas" -LocalPath (Join-Path $templatesDir "program.bas") | Out-Null
+        Download-Template -FileName "comcfg.txt" -LocalPath (Join-Path $templatesDir "comcfg.txt") | Out-Null
+        Download-Template -FileName "config.txt" -LocalPath (Join-Path $templatesDir "config.txt") | Out-Null
 
         # Firmwares
         Write-Host "`nTelechargement des firmwares..." -ForegroundColor Cyan
@@ -260,7 +494,7 @@ try {
         exit
     }
     elseif ($mode -eq "1") {
-        # ONLINE: manifest + configs
+        # ONLINE: manifest + templates
         Write-Host "`n=== Mode ONLINE ===" -ForegroundColor Green
         $null = New-Dir $LocalCacheDir
 
@@ -269,9 +503,11 @@ try {
 
         ($manifest | ConvertTo-Json -Depth 10) | Out-File (Join-Path $LocalCacheDir "manifest.json") -Encoding UTF8
 
-        Write-Host "`nTelechargement des configurations..." -ForegroundColor Cyan
-        Download-Configuration -Type "ethernet" -LocalPath (Join-Path $LocalCacheDir "configurations\ethernet\backup.tar") | Out-Null
-        Download-Configuration -Type "4g"      -LocalPath (Join-Path $LocalCacheDir "configurations\4g\backup.tar")       | Out-Null
+        Write-Host "`nTelechargement des templates..." -ForegroundColor Cyan
+        $templatesDir = New-Dir (Join-Path $LocalCacheDir "templates")
+        Download-Template -FileName "program.bas" -LocalPath (Join-Path $templatesDir "program.bas") | Out-Null
+        Download-Template -FileName "comcfg.txt" -LocalPath (Join-Path $templatesDir "comcfg.txt") | Out-Null
+        Download-Template -FileName "config.txt" -LocalPath (Join-Path $templatesDir "config.txt") | Out-Null
     }
     elseif ($mode -eq "2") {
         # CACHE
@@ -287,22 +523,20 @@ try {
         } else {
             Write-Host "Manifest absent du cache: certaines fonctions seront limitees." -ForegroundColor Yellow
         }
+
+        # Check templates
+        $templatesDir = Join-Path $LocalCacheDir "templates"
+        if (-not (Test-Path $templatesDir)) {
+            throw "Templates absents du cache. Utilisez ONLINE ou PREPARATION d'abord."
+        }
     }
     else {
         throw "Choix invalide"
     }
 
     # Working dirs
-    $CfgDir    = Join-Path $LocalCacheDir "configurations"
-    $FwDir     = Join-Path $LocalCacheDir "firmware"
-    $CfgEthDir = Join-Path $CfgDir "ethernet"
-    $Cfg4GDir  = Join-Path $CfgDir "4g"
-
-    if ($mode -eq "2") {
-        foreach($p in @($CfgEthDir,$Cfg4GDir)) {
-            if (-not (Test-Path $p)) { throw "Cache incomplet. Dossier manquant: $p" }
-        }
-    }
+    $TemplatesDir = Join-Path $LocalCacheDir "templates"
+    $FwDir = Join-Path $LocalCacheDir "firmware"
 
     # Firmware list
     $availableFirmwares = @($(Get-AvailableFirmwares -firmwarePath $FwDir -manifest $manifest))
@@ -360,6 +594,41 @@ try {
 
     # Internet profile
     $profile = Select-FromList -Title "Internet" -Options @("Modem 4G","Ethernet")
+    $ConnectionType = if ($profile -eq "Modem 4G") { "4G" } else { "Ethernet" }
+
+    # =================== COLLECT PARAMETERS FROM USER ===================
+    Write-Host ""
+    Write-Host "=== Configuration des parametres ===" -ForegroundColor Cyan
+    Write-Host "Entrez les valeurs ou appuyez sur Entree pour utiliser la valeur par defaut." -ForegroundColor Gray
+    Write-Host ""
+
+    $CollectedParams = @{}
+    
+    # First collect always-ask parameters
+    Write-Host "--- Parametres communs ---" -ForegroundColor Yellow
+    foreach ($paramDef in $ParameterDefinitions | Where-Object { $_.AlwaysAsk -eq $true }) {
+        $value = Prompt-Parameter -ParamDef $paramDef -CollectedParams $CollectedParams
+        $CollectedParams[$paramDef.Param] = $value
+        Write-Host "  $($paramDef.Param) = $value" -ForegroundColor DarkGray
+    }
+    
+    # Then collect connection-specific parameters
+    Write-Host ""
+    Write-Host "--- Parametres $ConnectionType ---" -ForegroundColor Yellow
+    foreach ($paramDef in $ParameterDefinitions | Where-Object { $_.ConnectionType -eq $ConnectionType }) {
+        $value = Prompt-Parameter -ParamDef $paramDef -CollectedParams $CollectedParams
+        $CollectedParams[$paramDef.Param] = $value
+        Write-Host "  $($paramDef.Param) = $value" -ForegroundColor DarkGray
+    }
+    
+    # Add automatic parameters based on connection type
+    foreach ($paramDef in $ParameterDefinitions | Where-Object { $_.Type -eq "Auto" }) {
+        if ($ConnectionType -eq "4G" -and $null -ne $paramDef.Value4G) {
+            $CollectedParams[$paramDef.Param] = $paramDef.Value4G
+        } elseif ($ConnectionType -eq "Ethernet" -and $null -ne $paramDef.ValueEthernet) {
+            $CollectedParams[$paramDef.Param] = $paramDef.ValueEthernet
+        }
+    }
 
     # --- T2M ASK NOW (JUSTE AVANT LA SELECTION DU LECTEUR), MODES 1 & 2 SEULEMENT ---
     $T2M = $null
@@ -375,13 +644,91 @@ try {
     elseif ($sdDrive -notmatch '^[A-Za-z]:\\') { throw "Format de lecteur invalide ($sdDrive)" }
     if (-not (Test-Path $sdDrive)) { throw "Lecteur $sdDrive non trouve." }
     Log ("Drive={0}" -f $sdDrive)
+    
+# =================== GENERATE BACKUP.TAR ===================
+    Write-Host ""
+    Write-Host "=== Generation du backup.tar ===" -ForegroundColor Cyan
+    
+    # Create temp directory for modified files
+    $tempDir = Join-Path $env:TEMP ("ewon_config_" + (Get-Date -Format "yyyyMMddHHmmss"))
+    New-Dir $tempDir | Out-Null
+    
+    # Define unused parameters based on connection type
+    $UnusedParams = @()
+    if ($ConnectionType -eq "4G") {
+        # If 4G, Ethernet parameters are unused
+        $UnusedParams = @("UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2")
+    } else {
+        # If Ethernet, 4G parameters are unused
+        $UnusedParams = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1")
+    }
+    
+    try {
+        # Process each template file
+        foreach ($templateFile in @("program.bas", "comcfg.txt", "config.txt")) {
+            Write-Host "  Traitement de $templateFile..." -ForegroundColor Gray
+            
+            $templatePath = Join-Path $TemplatesDir $templateFile
+            if (-not (Test-Path $templatePath)) {
+                throw "Template manquant: $templatePath"
+            }
+            
+            # Read template content line by line
+            $lines = Get-Content $templatePath
+            $processedLines = @()
+            
+            foreach ($line in $lines) {
+                $skipLine = $false
+                
+                # Check if this line contains an unused parameter
+                foreach ($unusedParam in $UnusedParams) {
+                    if ($line -match [regex]::Escape("{$unusedParam}")) {
+                        $skipLine = $true
+                        Write-Host "    Suppression ligne: $unusedParam" -ForegroundColor DarkGray
+                        break
+                    }
+                }
+                
+                if (-not $skipLine) {
+                    # Replace placeholders in this line
+                    $processedLine = $line
+                    foreach ($key in $CollectedParams.Keys) {
+                        $placeholder = "{$key}"
+                        $newLine = $processedLine -replace [regex]::Escape($placeholder), $CollectedParams[$key]
+                        if ($newLine -ne $processedLine) {
+                            Write-Host "    Remplacement: $placeholder -> $($CollectedParams[$key])" -ForegroundColor DarkGray
+                            $processedLine = $newLine
+                        }
+                    }
+                    $processedLines += $processedLine
+                }
+            }
+            
+            # Save modified file
+            $outputPath = Join-Path $tempDir $templateFile
+            $processedLines | Out-File -FilePath $outputPath -Encoding ASCII -Force
+        }
+        
+        # Create backup.tar
+        $backupTarPath = Join-Path $sdDrive "backup.tar"
+        Write-Host "  Creation de backup.tar..." -ForegroundColor Gray
+        
+        $filesToTar = Get-ChildItem $tempDir -File | Select-Object -ExpandProperty FullName
+        if (Create-TarArchive -Files $filesToTar -OutputPath $backupTarPath) {
+            Write-Host "  [OK] backup.tar cree" -ForegroundColor Green
+        } else {
+            throw "Echec de la creation de backup.tar"
+        }
+        
+    } finally {
+        # Clean up temp directory
+        if (Test-Path $tempDir) {
+            Remove-Item $tempDir -Recurse -Force
+        }
+    }
 
-    # Files to copy (configs d'abord)
+    # Copy firmware files to SD
     $filesToCopy = @()
-    if ($profile -eq "Ethernet") { $filesToCopy += Join-Path $CfgEthDir "backup.tar" }
-    else { $filesToCopy += Join-Path $Cfg4GDir "backup.tar" }
-
-    # Firmware files to copy
     $firmwareNote = ""
     if (-not $skipFirmwareUpdate -and $targetFw) {
         $targetFwDir = Join-Path $FwDir $targetFw
@@ -399,22 +746,22 @@ try {
         $firmwareNote = "Configuration uniquement (pas de MAJ firmware)"
     }
 
-    # Copy configs/firmware to SD
-    Write-Host ""; Write-Host ("=== Copie des fichiers vers {0} ===" -f $sdDrive) -ForegroundColor Green
-    Write-Host $firmwareNote -ForegroundColor Yellow
-    Write-Host ""
+    # Copy firmware files
+    if ($filesToCopy.Count -gt 0) {
+        Write-Host ""; Write-Host ("=== Copie des firmwares vers {0} ===" -f $sdDrive) -ForegroundColor Green
+        Write-Host $firmwareNote -ForegroundColor Yellow
+        Write-Host ""
 
-    $missing = @()
-    foreach($src in $filesToCopy){
-        $leaf = Split-Path $src -Leaf
-        $dest = Join-Path $sdDrive $leaf
-        if(Test-Path $src){
-            Copy-Item -Path $src -Destination $dest -Force
-            Write-Host (" + {0}" -f $leaf) -ForegroundColor DarkGreen
-            Log ("Copy: {0} -> {1}" -f $src, $dest)
-        } else {
-            Write-Host (" ! Fichier manquant: {0}" -f $src) -ForegroundColor Red
-            $missing += $src
+        foreach($src in $filesToCopy){
+            $leaf = Split-Path $src -Leaf
+            $dest = Join-Path $sdDrive $leaf
+            if(Test-Path $src){
+                Copy-Item -Path $src -Destination $dest -Force
+                Write-Host (" + {0}" -f $leaf) -ForegroundColor DarkGreen
+                Log ("Copy: {0} -> {1}" -f $src, $dest)
+            } else {
+                Write-Host (" ! Fichier manquant: {0}" -f $src) -ForegroundColor Red
+            }
         }
     }
 
@@ -443,13 +790,23 @@ try {
     }
     if (-not $allOk) { throw "Fichiers manquants sur la SD." }
 
-    # Procedure detaillee (blocs d'origine en ASCII)
+    # Procedure detaillee
     $procPath = Join-Path ([Environment]::GetFolderPath('Desktop')) "Procedure_Ewon.txt"
     if ($skipFirmwareUpdate) {
 $proc = @'
 PROCEDURE DETAILLEE APRES PREPARATION DE LA CARTE SD
 --------------------------------------------------
 CONFIGURATION SANS MISE A JOUR FIRMWARE
+
+Configuration generee dynamiquement avec les parametres suivants:
+'@
+        $proc += "`n"
+        foreach ($key in $CollectedParams.Keys | Sort-Object) {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1") {
+                $proc += "- $key : $($CollectedParams[$key])`n"
+            }
+        }
+        $proc += @'
 
 ETAPE 1 : PREPARATION
 1. Dans Windows : faites un clic droit sur le lecteur SD et selectionnez "Ejecter"
@@ -466,7 +823,7 @@ ETAPE 2 : INSERTION DE LA CARTE (CONFIGURATION UNIQUEMENT)
 ETAPE 3 : DEMANDE D ACCES A DISTANCE
 Transmettez aux administrateurs/configurateurs les informations suivantes :
 - Numero de serie de l Ewon
-- Information carte SIM
+- Information carte SIM (si 4G)
 - Identifiant IFS du site client
 - Nom souhaite pour l Ewon
 
@@ -477,6 +834,16 @@ Votre Ewon Flexy est maintenant configure.
 $proc = @'
 PROCEDURE DETAILLEE APRES PREPARATION DE LA CARTE SD
 --------------------------------------------------
+
+Configuration generee dynamiquement avec les parametres suivants:
+'@
+        $proc += "`n"
+        foreach ($key in $CollectedParams.Keys | Sort-Object) {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1") {
+                $proc += "- $key : $($CollectedParams[$key])`n"
+            }
+        }
+        $proc += @'
 
 ETAPE 1 : PREPARATION
 1. Dans Windows : faites un clic droit sur le lecteur SD et selectionnez "Ejecter"
@@ -500,7 +867,7 @@ ETAPE 3 : DEUXIEME INSERTION (CONFIGURATION)
 ETAPE 4 : DEMANDE D ACCES A DISTANCE
 Transmettez aux administrateurs/configurateurs les informations suivantes :
 - Numero de serie de l Ewon
-- Information carte SIM
+- Information carte SIM (si 4G)
 - Identifiant IFS du site client
 - Nom souhaite pour l Ewon
 
@@ -515,6 +882,7 @@ Votre Ewon Flexy est maintenant configure et a jour.
     Write-Host ""
     Write-Host "=== PREPARATION TERMINEE AVEC SUCCES ===" -ForegroundColor Green
     Write-Host ("MODE: {0}" -f ($(if($skipFirmwareUpdate){"Configuration uniquement"}else{"MAJ firmware + Configuration"}))) -ForegroundColor Cyan
+    Write-Host ("Type de connexion: {0}" -f $ConnectionType) -ForegroundColor Cyan
     Write-Host ""
     Write-Host "Lisez la procedure dans Notepad et ejectez proprement la carte SD." -ForegroundColor Yellow
     Pause-End

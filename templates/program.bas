@@ -2,8 +2,8 @@ Rem --- eWON start section: Init Section
 eWON_init_section:
 Rem --- eWON user (start)
 //************Configuration************
-//
-author$ = "Authorization"
+//{AccountName}
+author$ = "{AccountAuthorization}"
 //*****************Fin*****************
 SETSYS INF, "LOAD"
 SN$ = GETSYS INF, "SerNum"
