@@ -1,35 +1,129 @@
-name: Release PrepareEwonSD
+name: Build and Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches:
+      - main
+  pull_request:
+    types: [closed]
+    branches:
+      - main
 
 permissions:
   contents: write
 
 jobs:
   release:
+    # Only run on direct push to main or merged PR
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.merged == true)
+    
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Determine version from tag
-        id: ver
+      - name: Get version from manifest
+        id: version
         run: |
-          v="${GITHUB_REF#refs/tags/}"
-          echo "version=${v}" >> $GITHUB_OUTPUT
+          VERSION=$(jq -r '.version' manifest.json)
+          echo "version=v${VERSION}" >> $GITHUB_OUTPUT
+          echo "📦 Version from manifest: v${VERSION}"
 
-      - name: Prepare dist
+      - name: Get last commit info
+        id: commit
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          COMMIT_SHA=$(git log -1 --pretty=%h)
+          COMMIT_DATE=$(git log -1 --pretty=%cd --date=short)
+          echo "message<<EOF" >> $GITHUB_OUTPUT
+          echo "${COMMIT_MSG}" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "sha=${COMMIT_SHA}" >> $GITHUB_OUTPUT
+          echo "date=${COMMIT_DATE}" >> $GITHUB_OUTPUT
+
+      - name: Prepare distribution
         run: |
           mkdir -p dist
-          cp scripts/Prepare_Ewon_SD.ps1 "dist/PrepareEwonSD_${{ steps.ver.outputs.version }}.ps1"
+          
+          # Copy main script with 'latest' suffix
+          cp scripts/Prepare_Ewon_SD.ps1 "dist/PrepareEwonSD_latest.ps1"
+          
+          # Also create a versioned copy
+          cp scripts/Prepare_Ewon_SD.ps1 "dist/PrepareEwonSD_${{ steps.version.outputs.version }}.ps1"
+          
+          # Create SHA256 checksums
+          cd dist
+          sha256sum *.ps1 > SHA256SUMS.txt
+          cd ..
+          
+          echo "📁 Distribution files:"
+          ls -la dist/
+
+      - name: Load release body template
+        id: release_body
+        run: |
+          # Read the release body template
+          BODY_TEMPLATE=$(cat .github/release-body.md)
+          
+          # Replace placeholders
+          BODY="${BODY_TEMPLATE}"
+          BODY="${BODY//\{\{VERSION\}\}/${{ steps.version.outputs.version }}}"
+          BODY="${BODY//\{\{DATE\}\}/${{ steps.commit.outputs.date }}}"
+          BODY="${BODY//\{\{COMMIT_SHA\}\}/${{ steps.commit.outputs.sha }}}"
+          BODY="${BODY//\{\{COMMIT_MSG\}\}/${{ steps.commit.outputs.message }}}"
+          
+          # Save to file for the release action
+          echo "$BODY" > release_notes.md
+          
+          echo "📝 Release notes generated"
+
+      - name: Delete existing latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Check if 'latest' release exists and delete it
+          if gh release view latest &> /dev/null; then
+            echo "🗑️ Deleting existing 'latest' release..."
+            gh release delete latest -y
+          else
+            echo "ℹ️ No existing 'latest' release found"
+          fi
+          
+          # Also delete the tag if it exists
+          if git rev-parse latest &> /dev/null; then
+            echo "🏷️ Deleting existing 'latest' tag..."
+            git push origin :refs/tags/latest
+          fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: ncipollo/release-action@v1
         with:
-          files: dist/*
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          tag: latest
+          name: "🚀 Latest Release - ${{ steps.version.outputs.version }}"
+          bodyFile: release_notes.md
+          artifacts: "dist/*"
+          allowUpdates: true
+          makeLatest: true
+          removeArtifacts: true
+          replacesArtifacts: true
+          generateReleaseNotes: false
+          token: ${{ github.token }}
+
+      - name: Summary
+        run: |
+          echo "## 🎉 Release Created Successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Item | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Version** | ${{ steps.version.outputs.version }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Date** | ${{ steps.commit.outputs.date }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | \`${{ steps.commit.outputs.sha }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Release** | [View Release](https://github.com/${{ github.repository }}/releases/tag/latest) |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Files" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          ls -lh dist/ | tail -n +2 >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
