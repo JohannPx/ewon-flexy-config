@@ -34,8 +34,8 @@ $ParameterDefinitions = @(
     @{File="config.txt"; Param="NtpServerPort"; Default="123"; Description="The port of the remote NTP server"; Type="Integer"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="config.txt"; Param="Timezone"; Default="Europe/Paris"; Description="The configuration of the Ewon timezone"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="config.txt"; Param="Password"; Default="adm"; Description="User Password (max 24 chars)"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
-    @{File="program.bas"; Param="accountName"; Default=""; Description="Data account name"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
-    @{File="program.bas"; Param="accountAuthorization"; Default=""; Description="Data authorization"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="program.bas"; Param="AccountName"; Default=""; Description="Data account name"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="program.bas"; Param="AccountAuthorization"; Default=""; Description="Data authorization"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     
     # Connection type specific (automatic values)
     @{File="comcfg.txt"; Param="WANCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="2"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
@@ -633,7 +633,7 @@ try {
     # ======================================================
     # Ajustement dynamique de PrgAutorun
     # ======================================================
-    if ([string]::IsNullOrWhiteSpace($CollectedParams["accountAuthorization"])) {
+    if ([string]::IsNullOrWhiteSpace($CollectedParams["AccountAuthorization"])) {
         $CollectedParams["PrgAutorun"] = "0"
     } else {
         $CollectedParams["PrgAutorun"] = "1"
@@ -817,7 +817,7 @@ Configuration generee dynamiquement avec les parametres suivants:
 '@
         $proc += "`n"
         foreach ($key in $CollectedParams.Keys | Sort-Object) {
-            if ($key -ne "Password" -and $key -ne "PPPClPassword1") {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization") {
                 $proc += "- $key : $($CollectedParams[$key])`n"
             }
         }
