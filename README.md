@@ -133,23 +133,45 @@ ewon-flexy-config/
 ## 🔄 Workflow de configuration
 
 ```mermaid
-graph LR
+graph TD
     A[Lancement script] --> B{Choix mode}
     B -->|Online| C[Télécharge templates]
     B -->|Cache| D[Charge cache local]
     B -->|Preparation| E[Télécharge tout]
-    
+
     C --> F[Sélection connexion]
     D --> F
-    
-    F -->|4G| G[Paramètres 4G]
-    F -->|Ethernet| H[Paramètres Ethernet]
-    
-    G --> I[Génération backup.tar]
-    H --> I
-    
-    I --> J[Écriture SD]
-    J --> K[Procédure générée]
+
+    F -->|Ethernet| G[Paramètres Ethernet]
+    F -->|4G| H[Paramètres 4G]
+
+    %% Ethernet dynamique
+    G --> I{Valeur de UseBOOTP2}
+    I -->|0 - Statique| J[EthIpAddr2, EthIpMask2, EthGW, EthDns1, EthDns2 utilisés]
+    I -->|2 - DHCP| K[EthIpAddr2, EthIpMask2, EthGW, EthDns1, EthDns2 supprimés]
+
+    %% 4G dynamique
+    H --> L[PIN, APN, identifiants]
+
+    %% Paramètre program.bas
+    F --> M[Paramètres communs - LAN IP, Identification, NTP, Timezone, Password]
+    M --> N[program.bas - accountName, accountAuthorization]
+
+    %% Lien vers PrgAutorun
+    N --> O{accountAuthorization vide ?}
+    O -->|Non vide| P[PrgAutorun = 1]
+    O -->|Vide| Q[PrgAutorun = 0]
+
+    %% Convergence
+    J --> R[Génération backup.tar]
+    K --> R
+    L --> R
+    P --> R
+    Q --> R
+
+    R --> S[Écriture SD]
+    S --> T[Procédure générée]
+
 ```
 
 ---
