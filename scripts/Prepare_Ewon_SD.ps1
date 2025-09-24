@@ -630,6 +630,15 @@ try {
         }
     }
 
+    # ======================================================
+    # Ajustement dynamique de PrgAutorun
+    # ======================================================
+    if ([string]::IsNullOrWhiteSpace($CollectedParams["accountAuthorization"])) {
+        $CollectedParams["PrgAutorun"] = "0"
+    } else {
+        $CollectedParams["PrgAutorun"] = "1"
+    }
+
     # --- T2M ASK NOW (JUSTE AVANT LA SELECTION DU LECTEUR), MODES 1 & 2 SEULEMENT ---
     $T2M = $null
     if ($mode -ne "3") {
