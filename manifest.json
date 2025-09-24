@@ -7,11 +7,6 @@
       "version": "15.0s2",
       "hasEbu": true,
       "description": "Pivot firmware for 14.x to 15.x migration"
-    },
-    {
-      "version": "15.6",
-      "hasEbu": false,
-      "description": "Latest stable release"
     }
   ],
   "templates": {

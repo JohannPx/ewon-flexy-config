@@ -661,6 +661,12 @@ try {
     } else {
         # If Ethernet, 4G parameters are unused
         $UnusedParams = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1")
+
+        # Vérifier la valeur choisie pour UseBOOTP2
+        if ($CollectedParams["UseBOOTP2"] -eq "2") {
+            # Si DHCP, supprimer aussi les IP/DNS statiques
+            $UnusedParams += @("EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2")
+        }
     }
     
     try {
