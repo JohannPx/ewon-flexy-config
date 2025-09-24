@@ -19,15 +19,29 @@ jobs:
         run: |
           cp ./scripts/Prepare_Ewon_SD.ps1 ./PrepareEwonSD_latest.ps1
 
-      - name: Generate Release Notes
-        id: notes
+      - name: Load release body template
+        id: release_body
         run: |
-          echo "## 🚀 Nouveautés" > release_body.md
-          cat release_notes.md >> release_body.md
-          echo "" >> release_body.md
-          echo "## 📝 Commits inclus" >> release_body.md
-          git log -10 --pretty=format:"- %s (%h)" >> release_body.md
+          # Read the release body template
+          BODY_TEMPLATE=$(cat .github/release-body.md)
 
+          # Replace placeholders
+          BODY="${BODY_TEMPLATE}"
+          BODY="${BODY//\{\{VERSION\}\}/${{ github.ref_name }}}"
+          BODY="${BODY//\{\{DATE\}\}/$(date +'%Y-%m-%d')}"
+          BODY="${BODY//\{\{COMMIT_SHA\}\}/${{ github.sha }}}"
+          BODY="${BODY//\{\{COMMIT_MSG\}\}/${{ github.event.head_commit.message }}}"
+
+          # Save to file for the release action
+          echo "$BODY" > release_notes.md
+
+          # Append commits list
+          echo "" >> release_notes.md
+          echo "## 📝 Commits inclus" >> release_notes.md
+          git log -10 --pretty=format:"- %s (%h)" >> release_notes.md
+
+          echo "📝 Release notes generated"
+    
       - name: Publish Latest Release
         uses: ncipollo/release-action@v1
         with:
