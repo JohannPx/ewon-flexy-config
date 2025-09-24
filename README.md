@@ -211,5 +211,4 @@ Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 **© 2025 Clauger** - Tous droits réservés  
 Usage réservé aux équipes Clauger et clients autorisés
 
-**Contact technique** : support@clauger.com  
 **Documentation Ewon** : [HMS Networks](https://www.hms-networks.com/)
