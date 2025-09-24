@@ -47,7 +47,7 @@ jobs:
         with:
           tag: latest
           name: Latest Release
-          bodyFile: release_body.md
+          bodyFile: release_notes.md
           artifacts: ./PrepareEwonSD_latest.ps1
           allowUpdates: true
           removeArtifacts: true
