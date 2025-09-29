@@ -132,8 +132,8 @@ function Prompt-Parameter {
         
         switch ($ParamDef.Type) {
             "Password" {
-                # Double saisie pour les champs sensibles (Password et AccountAuthorization)
-                if ($ParamDef.Param -eq "Password" -or $ParamDef.Param -eq "AccountAuthorization") {
+                # Double saisie uniquement pour le mot de passe administrateur
+                if ($ParamDef.Param -eq "Password") {
                     do {
                         # Première saisie
                         do {
@@ -163,18 +163,17 @@ function Prompt-Parameter {
                         }
                     } until ($passwordsMatch)
                 } else {
-                    # Saisie simple pour les autres mots de passe (ex: PPPClPassword1)
-                    do {
-                        $sec = Read-Host $prompt -AsSecureString
-                        if (-not $sec -or $sec.Length -eq 0) { 
-                            if ($ParamDef.Default) {
-                                return $ParamDef.Default
-                            }
-                            Write-Host "Valeur obligatoire." -ForegroundColor Red 
+                    # Saisie simple pour AccountAuthorization et PPPClPassword1
+                    $sec = Read-Host $prompt -AsSecureString
+                    if (-not $sec -or $sec.Length -eq 0) { 
+                        if ($ParamDef.Default) {
+                            return $ParamDef.Default
+                        } else {
+                            # Retourner vide si aucune valeur (optionnel)
+                            return ""
                         }
-                    } until ($sec -and $sec.Length -gt 0 -or $ParamDef.Default)
-                    
-                    $value = if ($sec -and $sec.Length -gt 0) { Convert-SecureToPlain -Secure $sec } else { $ParamDef.Default }
+                    }
+                    $value = if ($sec -and $sec.Length -gt 0) { Convert-SecureToPlain -Secure $sec } else { "" }
                 }
             }
             
@@ -756,7 +755,7 @@ try {
                         $placeholder = "{$key}"
                         $newLine = $processedLine -replace [regex]::Escape($placeholder), $CollectedParams[$key]
                         if ($newLine -ne $processedLine) {
-                            Write-Host "    Remplacement: $placeholder -> $($CollectedParams[$key])" -ForegroundColor DarkGray
+                            # Remplacement effectué silencieusement pour la sécurité
                             $processedLine = $newLine
                         }
                     }
@@ -899,7 +898,7 @@ Configuration generee dynamiquement avec les parametres suivants:
 '@
         $proc += "`n"
         foreach ($key in $CollectedParams.Keys | Sort-Object) {
-            if ($key -ne "Password" -and $key -ne "PPPClPassword1") {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization") {
                 $proc += "- $key : $($CollectedParams[$key])`n"
             }
         }
