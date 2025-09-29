@@ -756,7 +756,7 @@ try {
                         $placeholder = "{$key}"
                         $newLine = $processedLine -replace [regex]::Escape($placeholder), $CollectedParams[$key]
                         if ($newLine -ne $processedLine) {
-                            Write-Host "    Remplacement: $placeholder -> $($CollectedParams[$key])" -ForegroundColor DarkGray
+                            # Remplacement effectué silencieusement pour la sécurité
                             $processedLine = $newLine
                         }
                     }
