@@ -899,7 +899,7 @@ Configuration generee dynamiquement avec les parametres suivants:
 '@
         $proc += "`n"
         foreach ($key in $CollectedParams.Keys | Sort-Object) {
-            if ($key -ne "Password" -and $key -ne "PPPClPassword1") {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization") {
                 $proc += "- $key : $($CollectedParams[$key])`n"
             }
         }
