@@ -132,17 +132,50 @@ function Prompt-Parameter {
         
         switch ($ParamDef.Type) {
             "Password" {
-                do {
-                    $sec = Read-Host $prompt -AsSecureString
-                    if (-not $sec -or $sec.Length -eq 0) { 
-                        if ($ParamDef.Default) {
-                            return $ParamDef.Default
+                # Double saisie uniquement pour le mot de passe administrateur
+                if ($ParamDef.Param -eq "Password") {
+                    do {
+                        # Première saisie
+                        do {
+                            $sec1 = Read-Host "$prompt" -AsSecureString
+                            if (-not $sec1 -or $sec1.Length -eq 0) {
+                                if ($ParamDef.Default) {
+                                    Write-Host "Utilisation de la valeur par defaut." -ForegroundColor Yellow
+                                    return $ParamDef.Default
+                                }
+                                Write-Host "Valeur obligatoire." -ForegroundColor Red
+                            }
+                        } until ($sec1 -and $sec1.Length -gt 0)
+                        
+                        # Deuxième saisie (confirmation)
+                        $sec2 = Read-Host "Confirmez le mot de passe" -AsSecureString
+                        
+                        # Conversion et comparaison
+                        $pwd1 = Convert-SecureToPlain -Secure $sec1
+                        $pwd2 = Convert-SecureToPlain -Secure $sec2
+                        
+                        if ($pwd1 -ne $pwd2) {
+                            Write-Host "Les mots de passe ne correspondent pas. Veuillez reessayer." -ForegroundColor Red
+                            $passwordsMatch = $false
+                        } else {
+                            $passwordsMatch = $true
+                            $value = $pwd1
                         }
-                        Write-Host "Valeur obligatoire." -ForegroundColor Red 
-                    }
-                } until ($sec -and $sec.Length -gt 0 -or $ParamDef.Default)
-                
-                $value = if ($sec -and $sec.Length -gt 0) { Convert-SecureToPlain -Secure $sec } else { $ParamDef.Default }
+                    } until ($passwordsMatch)
+                } else {
+                    # Saisie simple pour les autres mots de passe (ex: PPPClPassword1)
+                    do {
+                        $sec = Read-Host $prompt -AsSecureString
+                        if (-not $sec -or $sec.Length -eq 0) { 
+                            if ($ParamDef.Default) {
+                                return $ParamDef.Default
+                            }
+                            Write-Host "Valeur obligatoire." -ForegroundColor Red 
+                        }
+                    } until ($sec -and $sec.Length -gt 0 -or $ParamDef.Default)
+                    
+                    $value = if ($sec -and $sec.Length -gt 0) { Convert-SecureToPlain -Secure $sec } else { $ParamDef.Default }
+                }
             }
             
             "Choice" {
