@@ -35,7 +35,7 @@ $ParameterDefinitions = @(
     @{File="config.txt"; Param="Timezone"; Default="Europe/Paris"; Description="The configuration of the Ewon timezone"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="config.txt"; Param="Password"; Default="adm"; Description="User Password (max 24 chars)"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="program.bas"; Param="AccountName"; Default=""; Description="Data account name"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
-    @{File="program.bas"; Param="AccountAuthorization"; Default=""; Description="Data authorization"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="program.bas"; Param="AccountAuthorization"; Default=""; Description="Data authorization"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     
     # Connection type specific (automatic values)
     @{File="comcfg.txt"; Param="WANCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="2"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
@@ -132,8 +132,8 @@ function Prompt-Parameter {
         
         switch ($ParamDef.Type) {
             "Password" {
-                # Double saisie uniquement pour le mot de passe administrateur
-                if ($ParamDef.Param -eq "Password") {
+                # Double saisie pour les champs sensibles (Password et AccountAuthorization)
+                if ($ParamDef.Param -eq "Password" -or $ParamDef.Param -eq "AccountAuthorization") {
                     do {
                         # Première saisie
                         do {
@@ -642,7 +642,13 @@ try {
     foreach ($paramDef in $ParameterDefinitions | Where-Object { $_.AlwaysAsk -eq $true }) {
         $value = Prompt-Parameter -ParamDef $paramDef -CollectedParams $CollectedParams
         $CollectedParams[$paramDef.Param] = $value
-        Write-Host "  $($paramDef.Param) = $value" -ForegroundColor DarkGray
+        
+        # Masquer l'affichage des mots de passe et données sensibles
+        if ($paramDef.Type -eq "Password") {
+            Write-Host "  $($paramDef.Param) = ********" -ForegroundColor DarkGray
+        } else {
+            Write-Host "  $($paramDef.Param) = $value" -ForegroundColor DarkGray
+        }
     }
     
     # Then collect connection-specific parameters
@@ -651,7 +657,13 @@ try {
     foreach ($paramDef in $ParameterDefinitions | Where-Object { $_.ConnectionType -eq $ConnectionType }) {
         $value = Prompt-Parameter -ParamDef $paramDef -CollectedParams $CollectedParams
         $CollectedParams[$paramDef.Param] = $value
-        Write-Host "  $($paramDef.Param) = $value" -ForegroundColor DarkGray
+        
+        # Masquer l'affichage des mots de passe et données sensibles
+        if ($paramDef.Type -eq "Password") {
+            Write-Host "  $($paramDef.Param) = ********" -ForegroundColor DarkGray
+        } else {
+            Write-Host "  $($paramDef.Param) = $value" -ForegroundColor DarkGray
+        }
     }
     
     # Add automatic parameters based on connection type
