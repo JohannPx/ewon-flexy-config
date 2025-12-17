@@ -26,6 +26,16 @@ Téléchargez le fichier **`PrepareEwonSD_latest.ps1`** ci-dessous.
 2. **Clic-droit** → **Exécuter avec PowerShell**
 3. **Suivre** les instructions à l'écran
 
+### Probleme de politique d'execution ?
+
+Si vous obtenez l'erreur **"l'execution de scripts est desactivee sur ce systeme"**, utilisez cette commande dans PowerShell :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ".\PrepareEwonSD_latest.ps1"
+```
+
+Cette commande execute le script en contournant temporairement la restriction, sans modifier les parametres systeme.
+
 ---
 
 ## ✨ Fonctionnalités principales
