@@ -724,7 +724,16 @@ try {
 # =================== GENERATE BACKUP.TAR ===================
     Write-Host ""
     Write-Host "=== Generation du backup.tar ===" -ForegroundColor Cyan
-    
+
+    # En mode Datalogger, supprimer T2M.txt s'il existe (carte SD réutilisée)
+    if ($ConnectionType -eq "Datalogger") {
+        $t2mPath = Join-Path $sdDrive "T2M.txt"
+        if (Test-Path $t2mPath) {
+            Remove-Item $t2mPath -Force
+            Write-Host "  T2M.txt supprime (mode Datalogger)" -ForegroundColor Yellow
+        }
+    }
+
     # Create temp directory for modified files
     $tempDir = Join-Path $env:TEMP ("ewon_config_" + (Get-Date -Format "yyyyMMddHHmmss"))
     New-Dir $tempDir | Out-Null
