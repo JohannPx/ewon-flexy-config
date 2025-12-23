@@ -2,7 +2,7 @@ EthIP:{EthIP}
 EthMask:{EthMask}
 MemOrg:5
 NatItf:3
-WANPermCnx:1
+WANPermCnx:{WANPermCnx}
 VPNCnxType:2
 VPNKeyType:1
 VPNDrvMode:1
@@ -15,6 +15,7 @@ Language:0
 ClosedDevice:12
 WANCnx:{WANCnx}
 WANItfProt:{WANItfProt}
+LANWANConfig:{LANWANConfig}
 UseBOOTP2:{UseBOOTP2}
 EthIpAddr2:{EthIpAddr2}
 EthIpMask2:{EthIpMask2}

@@ -38,8 +38,10 @@ $ParameterDefinitions = @(
     @{File="program.bas"; Param="AccountAuthorization"; Default=""; Description="Data authorization"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     
     # Connection type specific (automatic values)
-    @{File="comcfg.txt"; Param="WANCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="2"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
-    @{File="comcfg.txt"; Param="WANItfProt"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="3"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="WANCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="2"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="WANItfProt"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="3"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="WANPermCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="1"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="LANWANConfig"; Default=$null; Description=$null; Value4G="8"; ValueEthernet="8"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null},
     
     # Ethernet specific
     @{File="comcfg.txt"; Param="UseBOOTP2"; Default="2"; Description="WAN IP Address Allocation (0=Static, 2=DHCP)"; Type="Choice"; Choices=@("0","2"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null},
@@ -53,7 +55,13 @@ $ParameterDefinitions = @(
     @{File="comcfg.txt"; Param="PIN"; Default="0000"; Description="Modem PIN Code (4 digits)"; Type="PIN"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="PdpApn"; Default="orange"; Description="GPRS PDP: Access Point Name"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="PPPClUserName1"; Default="orange"; Description="APN Username"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
-    @{File="comcfg.txt"; Param="PPPClPassword1"; Default="orange"; Description="APN Password"; Type="Password"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="PPPClPassword1"; Default="orange"; Description="APN Password"; Type="Password"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+
+    # Datalogger specific (LAN only - no WAN, Gateway and DNS via LAN interface)
+    @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Default gateway (via LAN)"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="DNS 1 IP address"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="DNS 2 IP address"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="config.txt"; Param="NtpServerAddr"; Default="fr.pool.ntp.org"; Description="NTP Server Address"; Type="Text"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null}
 )
 
 # =================== UTILS & LOGGING ===================
@@ -625,8 +633,12 @@ try {
     }
 
     # Internet profile
-    $profile = Select-FromList -Title "Internet" -Options @("Modem 4G","Ethernet")
-    $ConnectionType = if ($profile -eq "Modem 4G") { "4G" } else { "Ethernet" }
+    $profile = Select-FromList -Title "Mode connexion" -Options @("Modem 4G","Ethernet","Datalogger (LAN uniquement)")
+    $ConnectionType = switch ($profile) {
+        "Modem 4G" { "4G" }
+        "Ethernet" { "Ethernet" }
+        "Datalogger (LAN uniquement)" { "Datalogger" }
+    }
 
     # =================== COLLECT PARAMETERS FROM USER ===================
     Write-Host ""
@@ -671,6 +683,8 @@ try {
             $CollectedParams[$paramDef.Param] = $paramDef.Value4G
         } elseif ($ConnectionType -eq "Ethernet" -and $null -ne $paramDef.ValueEthernet) {
             $CollectedParams[$paramDef.Param] = $paramDef.ValueEthernet
+        } elseif ($ConnectionType -eq "Datalogger" -and $null -ne $paramDef.ValueDatalogger) {
+            $CollectedParams[$paramDef.Param] = $paramDef.ValueDatalogger
         }
     }
 
@@ -684,8 +698,9 @@ try {
     }
 
     # --- T2M ASK NOW (JUSTE AVANT LA SELECTION DU LECTEUR), MODES 1 & 2 SEULEMENT ---
+    # En mode Datalogger, pas de Talk2M (communication via LAN uniquement)
     $T2M = $null
-    if ($mode -ne "3") {
+    if ($mode -ne "3" -and $ConnectionType -ne "Datalogger") {
         $T2M = Prompt-T2M   # T2MKey masquee, T2MNote obligatoire
     }
 
@@ -711,6 +726,9 @@ try {
     if ($ConnectionType -eq "4G") {
         # If 4G, Ethernet parameters are unused
         $UnusedParams = @("UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2")
+    } elseif ($ConnectionType -eq "Datalogger") {
+        # If Datalogger (LAN only), 4G and WAN Ethernet parameters are unused (keep EthGW, EthDns1, EthDns2)
+        $UnusedParams = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1", "UseBOOTP2", "EthIpAddr2", "EthIpMask2")
     } else {
         # If Ethernet, 4G parameters are unused
         $UnusedParams = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1")
@@ -824,8 +842,8 @@ try {
         }
     }
 
-    # ---- T2M written ONLY on SD (not in cache), modes 1 & 2 ----
-    if ($mode -ne "3") {
+    # ---- T2M written ONLY on SD (not in cache), modes 1 & 2, NOT for Datalogger ----
+    if ($mode -ne "3" -and $ConnectionType -ne "Datalogger") {
         Write-Host ""
         Write-Host "Creation du T2M.txt directement sur la SD..." -ForegroundColor Cyan
         [void](Write-T2MDirect -SdRoot $sdDrive -T2MKey $T2M.Key -T2MNote $T2M.Note)
@@ -834,7 +852,7 @@ try {
     # Verify
     Write-Host ""; Write-Host "=== Verification des fichiers ===" -ForegroundColor Yellow
     $expected = @("backup.tar")
-    if ($mode -ne "3") { $expected += "T2M.txt" }
+    if ($mode -ne "3" -and $ConnectionType -ne "Datalogger") { $expected += "T2M.txt" }
     if (-not $skipFirmwareUpdate -and $targetFw) {
         $targetFwDir = Join-Path $FwDir $targetFw
         if ($currentFw -eq "14.x" -and (Test-Path (Join-Path $targetFwDir "ewonfwr.ebu"))) {
@@ -889,6 +907,16 @@ Transmettez aux administrateurs/configurateurs les informations suivantes :
 CONCLUSION
 Votre Ewon Flexy est maintenant configure.
 '@
+        # Pour le mode Datalogger, remplacer l'etape d'acces a distance
+        if ($ConnectionType -eq "Datalogger") {
+            $proc = $proc -replace "ETAPE 3 : DEMANDE D ACCES A DISTANCE[\s\S]*?CONCLUSION", @"
+ETAPE 3 : VERIFICATION DE LA COMMUNICATION
+L'Ewon communique via son interface LAN uniquement (pas de Talk2M).
+Verifiez que l'Ewon peut atteindre le serveur push.myclauger.com via le reseau local.
+
+CONCLUSION
+"@
+        }
     } else {
 $proc = @'
 PROCEDURE DETAILLEE APRES PREPARATION DE LA CARTE SD
@@ -933,6 +961,16 @@ Transmettez aux administrateurs/configurateurs les informations suivantes :
 CONCLUSION
 Votre Ewon Flexy est maintenant configure et a jour.
 '@
+        # Pour le mode Datalogger, remplacer l'etape d'acces a distance
+        if ($ConnectionType -eq "Datalogger") {
+            $proc = $proc -replace "ETAPE 4 : DEMANDE D ACCES A DISTANCE[\s\S]*?CONCLUSION", @"
+ETAPE 4 : VERIFICATION DE LA COMMUNICATION
+L'Ewon communique via son interface LAN uniquement (pas de Talk2M).
+Verifiez que l'Ewon peut atteindre le serveur push.myclauger.com via le reseau local.
+
+CONCLUSION
+"@
+        }
     }
     $proc | Out-File -FilePath $procPath -Encoding ASCII
     try { Start-Process notepad.exe $procPath | Out-Null } catch {}

@@ -25,6 +25,9 @@
     ],
     "4g_specific": [
       "PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1"
+    ],
+    "datalogger_specific": [
+      "EthGW", "EthDns1", "EthDns2"
     ]
   },
   "changelog": {

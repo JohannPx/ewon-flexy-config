@@ -50,7 +50,7 @@ powershell -ExecutionPolicy Bypass -File PrepareEwonSD_latest.ps1
 
 Le script vous guidera étape par étape pour :
 1. Choisir le mode de fonctionnement
-2. Sélectionner le type de connexion (4G/Ethernet)
+2. Sélectionner le type de connexion (4G/Ethernet/Datalogger)
 3. Renseigner les paramètres spécifiques
 4. Préparer la carte SD
 
@@ -67,11 +67,13 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 | **Communs** | IP LAN, masque, identification Ewon, serveur NTP, timezone, mot de passe admin, compte data |
 | **Ethernet** | Mode DHCP/Static, IP WAN, passerelle, DNS (si IP statique) |
 | **4G** | Code PIN, APN, identifiants APN |
+| **Datalogger** | Passerelle LAN, DNS (communication via LAN uniquement, pas de Talk2M) |
 
 ### 🧹 Optimisation automatique
 
 - Les paramètres **Ethernet** sont automatiquement supprimés pour une config **4G**
 - Les paramètres **4G** sont automatiquement supprimés pour une config **Ethernet**
+- Les paramètres **4G** et **Ethernet WAN** sont automatiquement supprimés pour une config **Datalogger**
 - Résultat : des fichiers de configuration propres et optimisés
 
 ### 💾 Trois modes d'utilisation
@@ -144,6 +146,7 @@ graph TD
 
     F -->|Ethernet| G[Paramètres Ethernet]
     F -->|4G| H[Paramètres 4G]
+    F -->|Datalogger| DL[Paramètres Datalogger]
 
     %% Ethernet dynamique
     G --> I{Valeur de UseBOOTP2}
@@ -152,6 +155,11 @@ graph TD
 
     %% 4G dynamique
     H --> L[PIN, APN, identifiants]
+
+    %% Datalogger dynamique
+    DL --> DLP[EthGW, EthDns1, EthDns2 - LAN uniquement]
+    DLP --> DLN[NtpServerAddr = fr.pool.ntp.org]
+    DLN --> DLT[Pas de Talk2M]
 
     %% Paramètre program.bas
     F --> M[Paramètres communs - LAN IP, Identification, NTP, Timezone, Password]
@@ -166,6 +174,7 @@ graph TD
     J --> R[Génération backup.tar]
     K --> R
     L --> R
+    DLT --> R
     P --> R
     Q --> R
 
@@ -183,7 +192,7 @@ graph TD
 Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 - Version du script utilisée
 - Mode sélectionné (Online/Cache/Preparation)
-- Type de connexion (4G/Ethernet)
+- Type de connexion (4G/Ethernet/Datalogger)
 - Message d'erreur complet
 
 ### 🤝 Contribuer

@@ -42,7 +42,7 @@ Cette commande execute le script en contournant temporairement la restriction, s
 
 ### 🔄 Génération dynamique
 - ✅ Configuration créée à la volée selon vos paramètres
-- ✅ Suppression automatique des paramètres inutilisés (4G vs Ethernet)
+- ✅ Suppression automatique des paramètres inutilisés (4G vs Ethernet vs Datalogger)
 - ✅ Validation intelligente des entrées (IP, PIN, etc.)
 
 ### 💾 Modes disponibles
@@ -85,6 +85,11 @@ Cette commande execute le script en contournant temporairement la restriction, s
 ### Spécifiques 4G
 - Code PIN de la carte SIM
 - APN et identifiants
+
+### Spécifiques Datalogger (LAN uniquement)
+- Passerelle LAN (EthGW)
+- Serveurs DNS (EthDns1, EthDns2)
+- NTP : fr.pool.ntp.org (pas de Talk2M)
 
 ---
 
