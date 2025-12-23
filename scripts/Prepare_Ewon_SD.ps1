@@ -60,8 +60,7 @@ $ParameterDefinitions = @(
     # Datalogger specific (LAN only - no WAN, Gateway and DNS via LAN interface)
     @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Default gateway (via LAN)"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="DNS 1 IP address"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
-    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="DNS 2 IP address"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
-    @{File="config.txt"; Param="NtpServerAddr"; Default="fr.pool.ntp.org"; Description="NTP Server Address"; Type="Text"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="DNS 2 IP address"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null}
 )
 
 # =================== UTILS & LOGGING ===================
@@ -647,7 +646,16 @@ try {
     Write-Host ""
 
     $CollectedParams = @{}
-    
+
+    # Modifier la valeur par défaut de NtpServerAddr selon le mode de connexion
+    # En mode Datalogger, pas de Talk2M donc utiliser un serveur NTP public
+    if ($ConnectionType -eq "Datalogger") {
+        $ntpParam = $ParameterDefinitions | Where-Object { $_.Param -eq "NtpServerAddr" -and $_.AlwaysAsk -eq $true }
+        if ($ntpParam) {
+            $ntpParam.Default = "fr.pool.ntp.org"
+        }
+    }
+
     # First collect always-ask parameters
     Write-Host "--- Parametres communs ---" -ForegroundColor Yellow
     foreach ($paramDef in $ParameterDefinitions | Where-Object { $_.AlwaysAsk -eq $true }) {
