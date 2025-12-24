@@ -52,7 +52,7 @@ $ParameterDefinitions = @(
     @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="Ethernet DNS 2 IP address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
 
     # Ethernet Proxy settings
-    @{File="comcfg.txt"; Param="WANPxyMode"; Default="0"; Description="WAN Proxy Mode (0=None, 1=Basic auth, 2=NTLM auth, 10=No auth)"; Type="Choice"; Choices=@("0","1","2","10"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null},
+    @{File="comcfg.txt"; Param="WANPxyMode"; Default="0"; Description="WAN Proxy Mode"; Type="Choice"; Choices=@("0","1","2","10"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null},
     @{File="comcfg.txt"; Param="WANPxyAddr"; Default=""; Description="Proxy Address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="WANPxyPort"; Default="8080"; Description="Proxy Port"; Type="Integer"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="WANPxyUsr"; Default=""; Description="Proxy Username"; Type="Text"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; Choices=$null},
@@ -211,26 +211,37 @@ function Prompt-Parameter {
             }
             
             "Choice" {
-                Write-Host $prompt -ForegroundColor Cyan
                 if ($ParamDef.Choices -and $ParamDef.Choices.Count -gt 0) {
+                    # Fonction pour obtenir la description d'une valeur
+                    $getChoiceDesc = {
+                        param($paramName, $val)
+                        switch ($paramName) {
+                            "UseBOOTP2" { switch ($val) { "0" { "Static" } "2" { "DHCP" } default { $val } } }
+                            "WANPxyMode" { switch ($val) { "0" { "No Proxy" } "1" { "Basic auth" } "2" { "NTLM auth" } "10" { "No auth" } default { $val } } }
+                            default { $val }
+                        }
+                    }
+
+                    # Trouver l'index du défaut
+                    $defaultIdx = [array]::IndexOf($ParamDef.Choices, $ParamDef.Default)
+                    $defaultDesc = & $getChoiceDesc $ParamDef.Param $ParamDef.Default
+
+                    Write-Host "$($ParamDef.Description) [defaut: $defaultDesc]" -ForegroundColor Cyan
                     for ($i = 0; $i -lt $ParamDef.Choices.Count; $i++) {
                         $choiceVal = $ParamDef.Choices[$i]
-                        # Descriptions selon le paramètre
-                        $desc = switch ($ParamDef.Param) {
-                            "UseBOOTP2" {
-                                switch ($choiceVal) { "0" { "Static" } "2" { "DHCP" } default { $choiceVal } }
-                            }
-                            "WANPxyMode" {
-                                switch ($choiceVal) { "0" { "No Proxy" } "1" { "Basic auth" } "2" { "NTLM auth" } "10" { "No auth" } default { $choiceVal } }
-                            }
-                            default { $choiceVal }
-                        }
+                        $desc = & $getChoiceDesc $ParamDef.Param $choiceVal
                         Write-Host "  [$($i+1)] $desc"
                     }
                     do {
-                        $choice = Read-Host "Choix (1-$($ParamDef.Choices.Count))"
+                        $choice = Read-Host "Choix (1-$($ParamDef.Choices.Count), Entree=defaut)"
+                        if ([string]::IsNullOrWhiteSpace($choice)) {
+                            $value = $ParamDef.Default
+                            break
+                        }
                     } while (-not ($choice -as [int]) -or [int]$choice -lt 1 -or [int]$choice -gt $ParamDef.Choices.Count)
-                    $value = $ParamDef.Choices[[int]$choice - 1]
+                    if (-not [string]::IsNullOrWhiteSpace($choice)) {
+                        $value = $ParamDef.Choices[[int]$choice - 1]
+                    }
                 } else {
                     # Fallback if no choices defined
                     $value = Read-Host $prompt
