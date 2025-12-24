@@ -81,6 +81,7 @@ Cette commande execute le script en contournant temporairement la restriction, s
 - Mode DHCP ou IP statique
 - Configuration WAN (si IP statique)
 - Serveurs DNS
+- Proxy HTTP (optionnel : sans auth, basic auth, NTLM)
 
 ### Spécifiques 4G
 - Code PIN de la carte SIM

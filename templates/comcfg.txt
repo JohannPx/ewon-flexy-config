@@ -22,6 +22,11 @@ EthIpMask2:{EthIpMask2}
 EthGW:{EthGW}
 EthDns1:{EthDns1}
 EthDns2:{EthDns2}
+WANPxyMode:{WANPxyMode}
+WANPxyAddr:{WANPxyAddr}
+WANPxyPort:{WANPxyPort}
+WANPxyUsr:{WANPxyUsr}
+WANPxyPass:{WANPxyPass}
 PPPClPhone1:GPRS
 DialInOut:2
 ClIdle:0

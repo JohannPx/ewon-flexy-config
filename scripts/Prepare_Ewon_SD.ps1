@@ -50,7 +50,14 @@ $ParameterDefinitions = @(
     @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Default WAN gateway"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="Ethernet DNS 1 IP address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="Ethernet DNS 2 IP address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
-    
+
+    # Ethernet Proxy settings
+    @{File="comcfg.txt"; Param="WANPxyMode"; Default="0"; Description="WAN Proxy Mode (0=None, 1=Basic auth, 2=NTLM auth, 10=No auth)"; Type="Choice"; Choices=@("0","1","2","10"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null},
+    @{File="comcfg.txt"; Param="WANPxyAddr"; Default=""; Description="Proxy Address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="WANPxyPort"; Default="8080"; Description="Proxy Port"; Type="Integer"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="WANPxyUsr"; Default=""; Description="Proxy Username"; Type="Text"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+    @{File="comcfg.txt"; Param="WANPxyPass"; Default=""; Description="Proxy Password"; Type="Password"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; Choices=$null},
+
     # 4G specific
     @{File="comcfg.txt"; Param="PIN"; Default="0000"; Description="Modem PIN Code (4 digits)"; Type="PIN"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="PdpApn"; Default="orange"; Description="GPRS PDP: Access Point Name"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; Choices=$null},
@@ -117,15 +124,34 @@ function Prompt-Parameter {
     )
     
     # Check condition if exists
+    # Supports: "Param=Value", "Param!=Value", and multiple conditions with OR logic "Param=1,Param=2"
     if ($ParamDef.Condition) {
-        $condParts = $ParamDef.Condition -split '='
-        if ($condParts.Count -eq 2) {
-            $condParam = $condParts[0]
-            $condValue = $condParts[1]
-            if ($CollectedParams[$condParam] -ne $condValue) {
-                # Condition not met, use default
-                return $ParamDef.Default
+        $conditions = $ParamDef.Condition -split ','
+        $anyConditionMet = $false
+
+        foreach ($cond in $conditions) {
+            if ($cond -match '^(.+)!=(.+)$') {
+                # Not equal condition
+                $condParam = $Matches[1]
+                $condValue = $Matches[2]
+                if ($CollectedParams[$condParam] -ne $condValue) {
+                    $anyConditionMet = $true
+                    break
+                }
+            } elseif ($cond -match '^(.+)=(.+)$') {
+                # Equal condition
+                $condParam = $Matches[1]
+                $condValue = $Matches[2]
+                if ($CollectedParams[$condParam] -eq $condValue) {
+                    $anyConditionMet = $true
+                    break
+                }
             }
+        }
+
+        if (-not $anyConditionMet) {
+            # Condition not met, use default
+            return $ParamDef.Default
         }
     }
     
@@ -732,11 +758,11 @@ try {
     # Define unused parameters based on connection type
     $UnusedParams = @()
     if ($ConnectionType -eq "4G") {
-        # If 4G, Ethernet parameters are unused
-        $UnusedParams = @("UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2")
+        # If 4G, Ethernet parameters are unused (including proxy)
+        $UnusedParams = @("UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2", "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass")
     } elseif ($ConnectionType -eq "Datalogger") {
-        # If Datalogger (LAN only), 4G and WAN Ethernet parameters are unused (keep EthGW, EthDns1, EthDns2)
-        $UnusedParams = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1", "UseBOOTP2", "EthIpAddr2", "EthIpMask2")
+        # If Datalogger (LAN only), 4G and WAN Ethernet parameters are unused (keep EthGW, EthDns1, EthDns2, no proxy)
+        $UnusedParams = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1", "UseBOOTP2", "EthIpAddr2", "EthIpMask2", "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass")
     } else {
         # If Ethernet, 4G parameters are unused
         $UnusedParams = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1")
@@ -745,6 +771,15 @@ try {
         if ($CollectedParams["UseBOOTP2"] -eq "2") {
             # Si DHCP, supprimer aussi les IP/DNS statiques
             $UnusedParams += @("EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2")
+        }
+
+        # Gestion du proxy selon WANPxyMode
+        if ($CollectedParams["WANPxyMode"] -eq "0") {
+            # Pas de proxy, supprimer tous les paramètres proxy sauf WANPxyMode
+            $UnusedParams += @("WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass")
+        } elseif ($CollectedParams["WANPxyMode"] -eq "10") {
+            # Proxy sans auth, supprimer user/pass
+            $UnusedParams += @("WANPxyUsr", "WANPxyPass")
         }
     }
     

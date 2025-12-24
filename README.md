@@ -65,7 +65,7 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 | Type | Paramètres demandés |
 |------|-------------------|
 | **Communs** | IP LAN, masque, identification Ewon, serveur NTP, timezone, mot de passe admin, compte data |
-| **Ethernet** | Mode DHCP/Static, IP WAN, passerelle, DNS (si IP statique) |
+| **Ethernet** | Mode DHCP/Static, IP WAN, passerelle, DNS (si IP statique), Proxy HTTP (optionnel) |
 | **4G** | Code PIN, APN, identifiants APN |
 | **Datalogger** | Passerelle LAN, DNS (communication via LAN uniquement, pas de Talk2M) |
 
