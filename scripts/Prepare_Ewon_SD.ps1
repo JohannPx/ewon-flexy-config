@@ -52,7 +52,7 @@ $ParameterDefinitions = @(
     @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="Ethernet DNS 2 IP address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
 
     # Ethernet Proxy settings
-    @{File="comcfg.txt"; Param="WANPxyMode"; Default="0"; Description="WAN Proxy Mode (0=None, 1=Basic auth, 2=NTLM auth, 10=No auth)"; Type="Choice"; Choices=@("0","1","2","10"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null},
+    @{File="comcfg.txt"; Param="WANPxyMode"; Default="0"; Description="WAN Proxy Mode"; Type="Choice"; Choices=@("0","1","2","10"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null},
     @{File="comcfg.txt"; Param="WANPxyAddr"; Default=""; Description="Proxy Address"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="WANPxyPort"; Default="8080"; Description="Proxy Port"; Type="Integer"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; Choices=$null},
     @{File="comcfg.txt"; Param="WANPxyUsr"; Default=""; Description="Proxy Username"; Type="Text"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; Choices=$null},
@@ -211,16 +211,37 @@ function Prompt-Parameter {
             }
             
             "Choice" {
-                Write-Host $prompt -ForegroundColor Cyan
                 if ($ParamDef.Choices -and $ParamDef.Choices.Count -gt 0) {
+                    # Fonction pour obtenir la description d'une valeur
+                    $getChoiceDesc = {
+                        param($paramName, $val)
+                        switch ($paramName) {
+                            "UseBOOTP2" { switch ($val) { "0" { "Static" } "2" { "DHCP" } default { $val } } }
+                            "WANPxyMode" { switch ($val) { "0" { "No Proxy" } "1" { "Basic auth" } "2" { "NTLM auth" } "10" { "No auth" } default { $val } } }
+                            default { $val }
+                        }
+                    }
+
+                    # Trouver l'index du défaut
+                    $defaultIdx = [array]::IndexOf($ParamDef.Choices, $ParamDef.Default)
+                    $defaultDesc = & $getChoiceDesc $ParamDef.Param $ParamDef.Default
+
+                    Write-Host "$($ParamDef.Description) [defaut: $defaultDesc]" -ForegroundColor Cyan
                     for ($i = 0; $i -lt $ParamDef.Choices.Count; $i++) {
-                        $desc = if ($ParamDef.Choices[$i] -eq "0") { "Static" } elseif ($ParamDef.Choices[$i] -eq "2") { "DHCP" } else { $ParamDef.Choices[$i] }
+                        $choiceVal = $ParamDef.Choices[$i]
+                        $desc = & $getChoiceDesc $ParamDef.Param $choiceVal
                         Write-Host "  [$($i+1)] $desc"
                     }
                     do {
-                        $choice = Read-Host "Choix (1-$($ParamDef.Choices.Count))"
+                        $choice = Read-Host "Choix (1-$($ParamDef.Choices.Count), Entree=defaut)"
+                        if ([string]::IsNullOrWhiteSpace($choice)) {
+                            $value = $ParamDef.Default
+                            break
+                        }
                     } while (-not ($choice -as [int]) -or [int]$choice -lt 1 -or [int]$choice -gt $ParamDef.Choices.Count)
-                    $value = $ParamDef.Choices[[int]$choice - 1]
+                    if (-not [string]::IsNullOrWhiteSpace($choice)) {
+                        $value = $ParamDef.Choices[[int]$choice - 1]
+                    }
                 } else {
                     # Fallback if no choices defined
                     $value = Read-Host $prompt
@@ -738,13 +759,33 @@ try {
         $T2M = Prompt-T2M   # T2MKey masquee, T2MNote obligatoire
     }
 
-    # SD drive
+    # SD drive selection with validation loop
     Write-Host "`n=== Selection lecteur SD ===" -ForegroundColor Cyan
-    $sdDrive = Read-Host "Lettre du lecteur (ex: E: ou F:)"
-    if ($sdDrive -match '^[A-Za-z]$') { $sdDrive = "${sdDrive}:\" }
-    elseif ($sdDrive -match '^[A-Za-z]:$') { $sdDrive = "${sdDrive}\" }
-    elseif ($sdDrive -notmatch '^[A-Za-z]:\\') { throw "Format de lecteur invalide ($sdDrive)" }
-    if (-not (Test-Path $sdDrive)) { throw "Lecteur $sdDrive non trouve." }
+    $sdDrive = $null
+    do {
+        $driveInput = Read-Host "Lettre du lecteur (ex: E: ou F:)"
+
+        # Normalize drive format
+        if ($driveInput -match '^[A-Za-z]$') {
+            $sdDrive = "${driveInput}:\"
+        }
+        elseif ($driveInput -match '^[A-Za-z]:$') {
+            $sdDrive = "${driveInput}\"
+        }
+        elseif ($driveInput -match '^[A-Za-z]:\\$') {
+            $sdDrive = $driveInput
+        }
+        else {
+            Write-Host "[ERREUR] Format invalide. Utilisez une lettre seule (E), avec deux-points (E:) ou chemin complet (E:\)" -ForegroundColor Red
+            continue
+        }
+
+        # Check if drive exists
+        if (-not (Test-Path $sdDrive)) {
+            Write-Host "[ERREUR] Lecteur $sdDrive non trouve. Verifiez que la carte SD est inseree." -ForegroundColor Red
+            $sdDrive = $null
+        }
+    } while ($null -eq $sdDrive)
     Log ("Drive={0}" -f $sdDrive)
     
 # =================== GENERATE BACKUP.TAR ===================
@@ -931,7 +972,7 @@ Configuration generee dynamiquement avec les parametres suivants:
 '@
         $proc += "`n"
         foreach ($key in $CollectedParams.Keys | Sort-Object) {
-            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization") {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization" -and $key -ne "WANPxyPass") {
                 $proc += "- $key : $($CollectedParams[$key])`n"
             }
         }
@@ -978,7 +1019,7 @@ Configuration generee dynamiquement avec les parametres suivants:
 '@
         $proc += "`n"
         foreach ($key in $CollectedParams.Keys | Sort-Object) {
-            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization") {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization" -and $key -ne "WANPxyPass") {
                 $proc += "- $key : $($CollectedParams[$key])`n"
             }
         }
