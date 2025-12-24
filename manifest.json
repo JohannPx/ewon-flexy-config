@@ -21,7 +21,8 @@
       "NtpServerPort", "Timezone", "Password", "AccountName", "AccountAuthorization"
     ],
     "ethernet_specific": [
-      "UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2"
+      "UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2",
+      "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass"
     ],
     "4g_specific": [
       "PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1"
