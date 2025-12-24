@@ -214,7 +214,17 @@ function Prompt-Parameter {
                 Write-Host $prompt -ForegroundColor Cyan
                 if ($ParamDef.Choices -and $ParamDef.Choices.Count -gt 0) {
                     for ($i = 0; $i -lt $ParamDef.Choices.Count; $i++) {
-                        $desc = if ($ParamDef.Choices[$i] -eq "0") { "Static" } elseif ($ParamDef.Choices[$i] -eq "2") { "DHCP" } else { $ParamDef.Choices[$i] }
+                        $choiceVal = $ParamDef.Choices[$i]
+                        # Descriptions selon le paramètre
+                        $desc = switch ($ParamDef.Param) {
+                            "UseBOOTP2" {
+                                switch ($choiceVal) { "0" { "Static" } "2" { "DHCP" } default { $choiceVal } }
+                            }
+                            "WANPxyMode" {
+                                switch ($choiceVal) { "0" { "No Proxy" } "1" { "Basic auth" } "2" { "NTLM auth" } "10" { "No auth" } default { $choiceVal } }
+                            }
+                            default { $choiceVal }
+                        }
                         Write-Host "  [$($i+1)] $desc"
                     }
                     do {
