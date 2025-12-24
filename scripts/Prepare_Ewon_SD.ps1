@@ -972,7 +972,7 @@ Configuration generee dynamiquement avec les parametres suivants:
 '@
         $proc += "`n"
         foreach ($key in $CollectedParams.Keys | Sort-Object) {
-            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization") {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization" -and $key -ne "WANPxyPass") {
                 $proc += "- $key : $($CollectedParams[$key])`n"
             }
         }
@@ -1019,7 +1019,7 @@ Configuration generee dynamiquement avec les parametres suivants:
 '@
         $proc += "`n"
         foreach ($key in $CollectedParams.Keys | Sort-Object) {
-            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization") {
+            if ($key -ne "Password" -and $key -ne "PPPClPassword1" -and $key -ne "AccountAuthorization" -and $key -ne "WANPxyPass") {
                 $proc += "- $key : $($CollectedParams[$key])`n"
             }
         }
