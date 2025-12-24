@@ -759,13 +759,33 @@ try {
         $T2M = Prompt-T2M   # T2MKey masquee, T2MNote obligatoire
     }
 
-    # SD drive
+    # SD drive selection with validation loop
     Write-Host "`n=== Selection lecteur SD ===" -ForegroundColor Cyan
-    $sdDrive = Read-Host "Lettre du lecteur (ex: E: ou F:)"
-    if ($sdDrive -match '^[A-Za-z]$') { $sdDrive = "${sdDrive}:\" }
-    elseif ($sdDrive -match '^[A-Za-z]:$') { $sdDrive = "${sdDrive}\" }
-    elseif ($sdDrive -notmatch '^[A-Za-z]:\\') { throw "Format de lecteur invalide ($sdDrive)" }
-    if (-not (Test-Path $sdDrive)) { throw "Lecteur $sdDrive non trouve." }
+    $sdDrive = $null
+    do {
+        $driveInput = Read-Host "Lettre du lecteur (ex: E: ou F:)"
+
+        # Normalize drive format
+        if ($driveInput -match '^[A-Za-z]$') {
+            $sdDrive = "${driveInput}:\"
+        }
+        elseif ($driveInput -match '^[A-Za-z]:$') {
+            $sdDrive = "${driveInput}\"
+        }
+        elseif ($driveInput -match '^[A-Za-z]:\\$') {
+            $sdDrive = $driveInput
+        }
+        else {
+            Write-Host "[ERREUR] Format invalide. Utilisez une lettre seule (E), avec deux-points (E:) ou chemin complet (E:\)" -ForegroundColor Red
+            continue
+        }
+
+        # Check if drive exists
+        if (-not (Test-Path $sdDrive)) {
+            Write-Host "[ERREUR] Lecteur $sdDrive non trouve. Verifiez que la carte SD est inseree." -ForegroundColor Red
+            $sdDrive = $null
+        }
+    } while ($null -eq $sdDrive)
     Log ("Drive={0}" -f $sdDrive)
     
 # =================== GENERATE BACKUP.TAR ===================
