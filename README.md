@@ -4,16 +4,19 @@
 [![License](https://img.shields.io/badge/license-Proprietary-blue.svg)](LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1%2B-blue.svg)](https://microsoft.com/powershell)
 
-> Solution professionnelle pour la préparation automatisée de cartes SD Ewon Flexy avec génération dynamique de configurations personnalisées.
+> Solution professionnelle pour la préparation automatisée de cartes SD Ewon Flexy avec interface graphique WPF et génération dynamique de configurations personnalisées.
 
 ---
 
-## ✨ Nouveautés v2.0
+## ✨ Nouveautés v5.0
 
+- 🖥️ **Interface graphique WPF** : Wizard 8 étapes remplaçant l'ancien mode console
+- 🧩 **Architecture modulaire** : Code restructuré en 8 modules spécialisés
+- ✅ **Validation temps réel** : Icônes de validation à côté de chaque champ
+- 🔄 **Champs conditionnels** : Affichage/masquage dynamique selon les choix (DHCP/statique, proxy, etc.)
+- 📊 **Barre de progression** : Suivi visuel de la génération avec log en temps réel
 - 🎯 **Génération dynamique** : Les configurations sont créées à la volée selon vos paramètres
 - 🧹 **Configuration optimisée** : Suppression automatique des paramètres inutilisés
-- ✅ **Validation intelligente** : Vérification des IP, codes PIN et autres entrées
-- 📝 **Documentation enrichie** : Procédure personnalisée avec vos paramètres
 
 ---
 
@@ -36,6 +39,8 @@ Rendez-vous dans **[Releases](../../releases/latest)** et téléchargez :
 PrepareEwonSD_latest.ps1
 ```
 
+> **Note** : Le fichier téléchargé est un script unique auto-contenu. Les modules sont intégrés dans le fichier lors du build CI/CD.
+
 ### 2️⃣ Exécution
 
 **Option A : Interface graphique**
@@ -46,17 +51,29 @@ PrepareEwonSD_latest.ps1
 powershell -ExecutionPolicy Bypass -File PrepareEwonSD_latest.ps1
 ```
 
-### 3️⃣ Suivre les instructions
+### 3️⃣ Suivre le wizard
 
-Le script vous guidera étape par étape pour :
-1. Choisir le mode de fonctionnement
-2. Sélectionner le type de connexion (4G/Ethernet/Datalogger)
-3. Renseigner les paramètres spécifiques
-4. Préparer la carte SD
+L'assistant graphique vous guide en 8 étapes :
+1. **Mode & Firmware** : Online/Cache/Préparation + sélection firmware
+2. **Type de connexion** : Modem 4G / Ethernet / Datalogger
+3. **Paramètres réseau** : Configuration spécifique au type de connexion
+4. **Paramètres communs** : IP LAN, NTP, timezone, mots de passe...
+5. **Talk2M** : Clé d'enregistrement et description (sauf Datalogger)
+6. **Lecteur SD** : Sélection du lecteur amovible
+7. **Résumé** : Vérification avant génération
+8. **Génération** : Progression et log en temps réel
 
 ---
 
 ## 🔧 Fonctionnalités principales
+
+### 🖥️ Interface WPF
+
+- Fenêtre wizard avec navigation Précédent/Suivant
+- Barre de progression par étape
+- Champs générés dynamiquement depuis les définitions de paramètres
+- Validation en temps réel avec indicateurs visuels (✔/✘)
+- Visibilité conditionnelle des champs (ex: DHCP masque les champs IP statiques)
 
 ### 📊 Génération dynamique de configuration
 
@@ -64,7 +81,7 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 
 | Type | Paramètres demandés |
 |------|-------------------|
-| **Communs** | IP LAN, masque, identification Ewon, serveur NTP, timezone, mot de passe admin, compte data |
+| **Communs** | IP LAN, masque, identification Ewon, serveur NTP, timezone, mot de passe admin, compte MyPortal3E |
 | **Ethernet** | Mode DHCP/Static, IP WAN, passerelle, DNS (si IP statique), Proxy HTTP (optionnel) |
 | **4G** | Code PIN, APN, identifiants APN |
 | **Datalogger** | Passerelle LAN, DNS (communication via LAN uniquement, pas de Talk2M) |
@@ -95,6 +112,8 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 | **Carte SD** | FAT32, max 128 Go |
 | **Espace disque** | 500 Mo pour le cache complet |
 
+> **Aucune dépendance externe** : WPF est inclus nativement dans .NET Framework sur Windows.
+
 ---
 
 ## 🔐 Sécurité et confidentialité
@@ -102,7 +121,7 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 ### ✅ Ce qui est sécurisé
 
 - **Talk2M** : Les clés sont demandées à chaque exécution, jamais stockées
-- **Mots de passe** : Saisie masquée, non affichés dans les logs
+- **Mots de passe** : Saisie masquée (PasswordBox WPF), non affichés dans les logs
 - **Cache local** : Stocké dans `%APPDATA%\EwonFlexConfig`
 
 ### ⚠️ Points d'attention
@@ -118,17 +137,36 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 ```
 ewon-flexy-config/
 ├── 📜 scripts/
-│   └── Prepare_Ewon_SD.ps1     # Script principal
-├── 📝 templates/                # Templates de configuration
-│   ├── program.bas              # Script BASIC Ewon
-│   ├── comcfg.txt              # Configuration communication
-│   └── config.txt              # Configuration système
-├── 📋 manifest.json            # Métadonnées et versions
+│   ├── Prepare_Ewon_SD.ps1         # Point d'entrée (~70 lignes)
+│   └── modules/
+│       ├── AppState.ps1             # État central (hashtable partagée)
+│       ├── Validation.ps1           # Validateurs (IPv4, PIN, entier...)
+│       ├── Config.ps1               # Définitions paramètres, conditions
+│       ├── Network.ps1              # Téléchargements, cache, TLS
+│       ├── Firmware.ps1             # Versions firmware, compatibilité
+│       ├── Generator.ps1            # Templates, tar, T2M, procédure
+│       ├── UIHelpers.ps1            # Création dynamique de champs WPF
+│       └── UI.ps1                   # XAML wizard, événements
+├── 📝 templates/                    # Templates de configuration
+│   ├── program.bas                  # Script BASIC Ewon
+│   ├── comcfg.txt                   # Configuration communication
+│   └── config.txt                   # Configuration système
+├── 📋 manifest.json                 # Métadonnées et versions
 └── 📚 .github/
     ├── workflows/
-    │   └── build-release.yml   # CI/CD automatisé
-    └── release-body.md         # Notes de version
+    │   └── build-release.yml        # CI/CD (concaténation + release)
+    └── release-body.md              # Notes de version
 ```
+
+### 🔨 Build CI/CD
+
+Lors d'un push sur `main`, le workflow GitHub Actions :
+1. Concatène les 8 modules dans l'ordre de dépendance
+2. Ajoute le launcher en fin de fichier
+3. Produit un fichier unique `PrepareEwonSD_latest.ps1`
+4. Publie une release GitHub avec ce fichier en téléchargement
+
+En développement local, le launcher détecte le dossier `modules/` et charge les fichiers individuellement via dot-sourcing.
 
 ---
 
@@ -193,7 +231,7 @@ Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 - Version du script utilisée
 - Mode sélectionné (Online/Cache/Preparation)
 - Type de connexion (4G/Ethernet/Datalogger)
-- Message d'erreur complet
+- Message d'erreur complet (capture d'écran de la boîte d'erreur)
 
 ### 🤝 Contribuer
 
@@ -209,6 +247,7 @@ Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 
 | Version | Date | Changements |
 |---------|------|-------------|
+| **v5.0.0** | 2026-02 | Interface WPF wizard, architecture modulaire 8 modules, validation temps réel |
 | **v2.0.0** | 2025-01 | Génération dynamique, suppression lignes inutilisées |
 | **v1.1.0** | 2025-01 | Mode preparation, cache local |
 | **v1.0.0** | 2024-12 | Version initiale |
@@ -217,7 +256,7 @@ Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 
 ## 🏢 Informations légales
 
-**© 2025 Clauger** - Tous droits réservés  
+**© 2025 Clauger** - Tous droits réservés
 Usage réservé aux équipes Clauger et clients autorisés
 
 **Documentation Ewon** : [HMS Networks](https://www.hms-networks.com/)
