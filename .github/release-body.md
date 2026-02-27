@@ -18,25 +18,42 @@ Cette release contient la dernière version du script de préparation de cartes 
 
 ## 📥 Téléchargement
 
-Téléchargez le fichier **`PrepareEwonSD_latest.ps1`** ci-dessous.
-
 > **Fichier unique auto-contenu** : les 9 modules sont intégrés dans le script lors du build. Aucune dépendance externe, PowerShell 5.1 natif Windows suffit.
+
+### 🔽 Où trouver le fichier ?
+
+Le fichier **`PrepareEwonSD_latest.ps1`** se trouve dans la section **Assets** tout en bas de cette page (cliquez sur **▶ Assets** pour déplier si nécessaire).
 
 ### 🚀 Installation rapide
 
-1. **Télécharger** le script `PrepareEwonSD_latest.ps1`
-2. **Clic-droit** → **Exécuter avec PowerShell**
+1. **Télécharger** le fichier `PrepareEwonSD_latest.ps1` depuis les **Assets** ci-dessous
+2. **Clic-droit** sur le fichier téléchargé → **Exécuter avec PowerShell**
 3. **Suivre** le wizard graphique (8 étapes)
 
-### Probleme de politique d'execution ?
+### 🔒 Avertissement de sécurité Windows
 
-Si vous obtenez l'erreur **"l'execution de scripts est desactivee sur ce systeme"**, utilisez cette commande dans PowerShell :
+Au premier lancement, Windows affiche un **"Avertissement de sécurité"** car le script provient d'Internet :
+
+```
+Avertissement de sécurité
+N'exécutez que des scripts que vous approuvez. [...]
+Voulez-vous exécuter C:\...\PrepareEwonSD_latest.ps1 ?
+[N] Ne pas exécuter  [O] Exécuter une fois  [S] Suspendre  [?] Aide
+```
+
+**➜ Tapez `O` puis Entrée** pour exécuter le script. C'est un comportement normal de Windows pour tout script téléchargé depuis Internet. Le script ne modifie aucun paramètre système et ne contient aucun code malveillant — il se contente de préparer la carte SD.
+
+> 💡 **Astuce** : Pour ne plus voir cet avertissement, faites clic-droit sur le fichier → **Propriétés** → cochez **Débloquer** en bas de la fenêtre → **OK**.
+
+### Problème de politique d'exécution ?
+
+Si vous obtenez l'erreur **"l'exécution de scripts est désactivée sur ce système"** au lieu de l'avertissement ci-dessus, utilisez cette commande dans PowerShell :
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File ".\PrepareEwonSD_latest.ps1"
 ```
 
-Cette commande execute le script en contournant temporairement la restriction, sans modifier les parametres systeme.
+Cette commande exécute le script en contournant temporairement la restriction, sans modifier les paramètres système.
 
 ---
 
