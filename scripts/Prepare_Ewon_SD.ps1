@@ -17,6 +17,15 @@ if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
     exit
 }
 
+# Show startup message before hiding console
+Write-Host ""
+Write-Host "  Ewon Flexy SD Card Preparation Tool" -ForegroundColor Cyan
+Write-Host "  Loading GUI, please wait..." -ForegroundColor Gray
+Write-Host ""
+
+# Brief pause so the user can read the startup message
+Start-Sleep -Seconds 2
+
 # Hide the console window (only the WPF GUI will be visible)
 Add-Type -Name Win32 -Namespace Native -MemberDefinition @'
     [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
@@ -36,6 +45,7 @@ $modulesDir = Join-Path $ScriptDir "modules"
 if (Test-Path $modulesDir) {
     $moduleOrder = @(
         "AppState.ps1"
+        "Localization.ps1"
         "Validation.ps1"
         "Config.ps1"
         "Network.ps1"
@@ -69,10 +79,10 @@ try {
     }
     try {
         [System.Windows.MessageBox]::Show(
-            "Erreur: $errMsg`n`n$($_.ScriptStackTrace)",
-            "Erreur", "OK", "Error")
+            "$((T 'DlgError')): $errMsg`n`n$($_.ScriptStackTrace)",
+            (T "DlgError"), "OK", "Error")
     } catch {
-        Write-Host "ERREUR: $errMsg" -ForegroundColor Red
+        Write-Host "$((T 'DlgError')): $errMsg" -ForegroundColor Red
         Write-Host $_.ScriptStackTrace
     }
 }

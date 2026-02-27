@@ -31,7 +31,7 @@ function Test-ParameterValue {
     # Empty value with no requirement = valid
     if ([string]::IsNullOrWhiteSpace($Value)) {
         if ($IsRequired) {
-            return @{ IsValid = $false; Message = "Valeur obligatoire." }
+            return @{ IsValid = $false; Message = (T "ValRequired") }
         }
         return @{ IsValid = $true; Message = "" }
     }
@@ -39,22 +39,22 @@ function Test-ParameterValue {
     switch ($Type) {
         "IPv4" {
             if (-not (Test-IPv4 $Value)) {
-                return @{ IsValid = $false; Message = "Adresse IP invalide. Format: xxx.xxx.xxx.xxx" }
+                return @{ IsValid = $false; Message = (T "ValInvalidIP") }
             }
         }
         "PIN" {
             if (-not (Test-PIN $Value)) {
-                return @{ IsValid = $false; Message = "Code PIN invalide. 4 chiffres requis." }
+                return @{ IsValid = $false; Message = (T "ValInvalidPIN") }
             }
         }
         "Integer" {
             if (-not (Test-Integer $Value)) {
-                return @{ IsValid = $false; Message = "Entier requis." }
+                return @{ IsValid = $false; Message = (T "ValInteger") }
             }
         }
         "Password" {
             if ($Value.Length -gt 24) {
-                return @{ IsValid = $false; Message = "24 caracteres maximum." }
+                return @{ IsValid = $false; Message = (T "ValMaxLength") }
             }
         }
     }

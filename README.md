@@ -8,15 +8,18 @@
 
 ---
 
-## ✨ Nouveautés v5.0
+## ✨ Nouveautés v5.1
 
-- 🖥️ **Interface graphique WPF** : Wizard 8 étapes remplaçant l'ancien mode console
-- 🧩 **Architecture modulaire** : Code restructuré en 8 modules spécialisés
-- ✅ **Validation temps réel** : Icônes de validation à côté de chaque champ
+- 🌍 **Multilingue** : Interface disponible en français, anglais, espagnol et italien (sélection par drapeaux)
+- 🖥️ **Interface graphique WPF** : Wizard 8 étapes avec icône SD personnalisée (titre + barre des tâches)
+- 🧩 **Architecture modulaire** : Code restructuré en 9 modules spécialisés (+ Localization.ps1)
+- ✅ **Validation temps réel** : Icônes de validation à côté de chaque champ, champs obligatoires en IP statique WAN
 - 🔄 **Champs conditionnels** : Affichage/masquage dynamique selon les choix (DHCP/statique, proxy, etc.)
 - 📊 **Barre de progression** : Suivi visuel de la génération avec log en temps réel
 - 🎯 **Génération dynamique** : Les configurations sont créées à la volée selon vos paramètres
 - 🧹 **Configuration optimisée** : Suppression automatique des paramètres inutilisés
+- 📦 **Cache intelligent** : Téléchargement automatique de tous les firmwares en arrière-plan (sans bloquer l'interface)
+- 📄 **Archive tar robuste** : Génération fiable du backup.tar avec fallback POSIX intégré
 
 ---
 
@@ -67,13 +70,28 @@ L'assistant graphique vous guide en 8 étapes :
 
 ## 🔧 Fonctionnalités principales
 
+### 🌍 Multilingue (FR/EN/ES/IT)
+
+- Sélection de la langue via drapeaux en haut de la première page
+- Changement instantané de tous les textes, labels, messages et procédures
+- Fallback automatique vers le français si une traduction manque
+
 ### 🖥️ Interface WPF
 
 - Fenêtre wizard avec navigation Précédent/Suivant
+- Icône SD personnalisée dans la barre de titre et la barre des tâches Windows
 - Barre de progression par étape
 - Champs générés dynamiquement depuis les définitions de paramètres
 - Validation en temps réel avec indicateurs visuels (✔/✘)
+- Champs IP WAN obligatoires en mode statique Ethernet
 - Visibilité conditionnelle des champs (ex: DHCP masque les champs IP statiques)
+
+### 📦 Cache intelligent
+
+- Détection automatique de la connectivité au lancement
+- Téléchargement en arrière-plan de tous les firmwares disponibles (sans bloquer l'UI)
+- Affichage de la progression du cache dans la bannière de statut
+- Les firmwares déjà en cache ne sont pas retéléchargés
 
 ### 📊 Génération dynamique de configuration
 
@@ -140,13 +158,14 @@ ewon-flexy-config/
 │   ├── Prepare_Ewon_SD.ps1         # Point d'entrée (~70 lignes)
 │   └── modules/
 │       ├── AppState.ps1             # État central (hashtable partagée)
+│       ├── Localization.ps1         # i18n FR/EN/ES/IT (~160 clés × 4 langues)
 │       ├── Validation.ps1           # Validateurs (IPv4, PIN, entier...)
 │       ├── Config.ps1               # Définitions paramètres, conditions
 │       ├── Network.ps1              # Téléchargements, cache, TLS
-│       ├── Firmware.ps1             # Versions firmware, compatibilité
+│       ├── Firmware.ps1             # Versions firmware, compatibilité, cache async
 │       ├── Generator.ps1            # Templates, tar, T2M, procédure
 │       ├── UIHelpers.ps1            # Création dynamique de champs WPF
-│       └── UI.ps1                   # XAML wizard, événements
+│       └── UI.ps1                   # XAML wizard, événements, drapeaux
 ├── 📝 templates/                    # Templates de configuration
 │   ├── program.bas                  # Script BASIC Ewon
 │   ├── comcfg.txt                   # Configuration communication
@@ -161,7 +180,7 @@ ewon-flexy-config/
 ### 🔨 Build CI/CD
 
 Lors d'un push sur `main`, le workflow GitHub Actions :
-1. Concatène les 8 modules dans l'ordre de dépendance
+1. Concatène les 9 modules dans l'ordre de dépendance
 2. Ajoute le launcher en fin de fichier
 3. Produit un fichier unique `PrepareEwonSD_latest.ps1`
 4. Publie une release GitHub avec ce fichier en téléchargement
@@ -247,6 +266,7 @@ Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 
 | Version | Date | Changements |
 |---------|------|-------------|
+| **v5.1.0** | 2026-02 | Multilingue FR/EN/ES/IT, cache async firmware, icône app, validation obligatoire IP WAN, tar robuste |
 | **v5.0.0** | 2026-02 | Interface WPF wizard, architecture modulaire 8 modules, validation temps réel |
 | **v2.0.0** | 2025-01 | Génération dynamique, suppression lignes inutilisées |
 | **v1.1.0** | 2025-01 | Mode preparation, cache local |
@@ -256,7 +276,7 @@ Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 
 ## 🏢 Informations légales
 
-**© 2025 Clauger** - Tous droits réservés
+**© 2026 Clauger** - Tous droits réservés
 Usage réservé aux équipes Clauger et clients autorisés
 
 **Documentation Ewon** : [HMS Networks](https://www.hms-networks.com/)

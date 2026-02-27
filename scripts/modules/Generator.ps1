@@ -7,58 +7,100 @@ function New-TarArchive {
     )
 
     try {
+        # Prepare temp directory with copies of the files
+        $tempDir = Join-Path $env:TEMP ("ewon_tar_" + (Get-Date -Format "yyyyMMddHHmmss"))
+        New-Dir $tempDir | Out-Null
+
+        foreach ($file in $Files) {
+            Copy-Item -Path $file -Destination $tempDir -Force
+        }
+
+        $tarOk = $false
         $tarExe = Get-Command tar -ErrorAction SilentlyContinue
         if ($tarExe) {
-            $tempDir = Join-Path $env:TEMP ("ewon_tar_" + (Get-Date -Format "yyyyMMddHHmmss"))
-            New-Dir $tempDir | Out-Null
-
-            foreach ($file in $Files) {
-                Copy-Item -Path $file -Destination $tempDir -Force
+            # Use -C to avoid Push-Location/glob issues; redirect stderr to prevent
+            # $ErrorActionPreference='Stop' from throwing on tar warnings
+            $fileNames = @(Get-ChildItem $tempDir -File | ForEach-Object { $_.Name })
+            $tarArgs = @("-cf", $OutputPath, "-C", $tempDir) + $fileNames
+            $null = & tar @tarArgs 2>&1
+            if ($LASTEXITCODE -eq 0 -and (Test-Path $OutputPath)) {
+                $tarOk = $true
             }
+        }
 
-            Push-Location $tempDir
-            & tar -cf $OutputPath *
-            Pop-Location
-
-            Remove-Item $tempDir -Recurse -Force
-            return $true
-        } else {
-            # Fallback: manual tar creation
+        if (-not $tarOk) {
+            # Fallback: manual tar creation with proper POSIX headers
             $stream = [System.IO.FileStream]::new($OutputPath, [System.IO.FileMode]::Create)
             $writer = [System.IO.BinaryWriter]::new($stream)
 
-            foreach ($file in $Files) {
-                $fileInfo = Get-Item $file
-                $fileName = $fileInfo.Name
-                $fileSize = $fileInfo.Length
-                $fileContent = [System.IO.File]::ReadAllBytes($file)
+            foreach ($file in (Get-ChildItem $tempDir -File)) {
+                $fileName = $file.Name
+                $fileSize = $file.Length
+                $fileContent = [System.IO.File]::ReadAllBytes($file.FullName)
 
+                # Build 512-byte tar header
                 $header = New-Object byte[] 512
+
+                # Name (offset 0, 100 bytes)
                 $nameBytes = [System.Text.Encoding]::ASCII.GetBytes($fileName)
                 [Array]::Copy($nameBytes, 0, $header, 0, [Math]::Min($nameBytes.Length, 100))
 
-                $modeBytes = [System.Text.Encoding]::ASCII.GetBytes("100644 ")
-                [Array]::Copy($modeBytes, 0, $header, 100, $modeBytes.Length)
+                # Mode (offset 100, 8 bytes) - "0100644\0"
+                $modeStr = "0100644" + [char]0
+                $modeBytes = [System.Text.Encoding]::ASCII.GetBytes($modeStr)
+                [Array]::Copy($modeBytes, 0, $header, 100, [Math]::Min($modeBytes.Length, 8))
 
-                $sizeOctal = [Convert]::ToString($fileSize, 8).PadLeft(11, '0') + ' '
+                # UID (offset 108, 8 bytes) - "0000000\0"
+                $uidStr = "0000000" + [char]0
+                $uidBytes = [System.Text.Encoding]::ASCII.GetBytes($uidStr)
+                [Array]::Copy($uidBytes, 0, $header, 108, [Math]::Min($uidBytes.Length, 8))
+
+                # GID (offset 116, 8 bytes) - "0000000\0"
+                [Array]::Copy($uidBytes, 0, $header, 116, [Math]::Min($uidBytes.Length, 8))
+
+                # Size (offset 124, 12 bytes) - octal, null-terminated
+                $sizeOctal = [Convert]::ToString($fileSize, 8).PadLeft(11, '0') + [char]0
                 $sizeBytes = [System.Text.Encoding]::ASCII.GetBytes($sizeOctal)
-                [Array]::Copy($sizeBytes, 0, $header, 124, $sizeBytes.Length)
+                [Array]::Copy($sizeBytes, 0, $header, 124, [Math]::Min($sizeBytes.Length, 12))
+
+                # Mtime (offset 136, 12 bytes) - seconds since epoch
+                $epoch = [DateTimeOffset]::new($file.LastWriteTimeUtc).ToUnixTimeSeconds()
+                $mtimeOctal = [Convert]::ToString($epoch, 8).PadLeft(11, '0') + [char]0
+                $mtimeBytes = [System.Text.Encoding]::ASCII.GetBytes($mtimeOctal)
+                [Array]::Copy($mtimeBytes, 0, $header, 136, [Math]::Min($mtimeBytes.Length, 12))
+
+                # Typeflag (offset 156, 1 byte) - '0' = regular file
+                $header[156] = [byte][char]'0'
+
+                # Checksum (offset 148, 8 bytes) - compute with spaces in checksum field
+                # Fill checksum field with spaces for computation
+                for ($i = 148; $i -lt 156; $i++) { $header[$i] = 32 }
+                $checksum = 0
+                for ($i = 0; $i -lt 512; $i++) { $checksum += $header[$i] }
+                $chkStr = [Convert]::ToString($checksum, 8).PadLeft(6, '0') + [char]0 + " "
+                $chkBytes = [System.Text.Encoding]::ASCII.GetBytes($chkStr)
+                [Array]::Copy($chkBytes, 0, $header, 148, [Math]::Min($chkBytes.Length, 8))
 
                 $writer.Write($header)
                 $writer.Write($fileContent)
 
-                $padding = 512 - ($fileSize % 512)
-                if ($padding -ne 512) {
-                    $writer.Write((New-Object byte[] $padding))
+                # Pad to 512-byte boundary
+                $remainder = $fileSize % 512
+                if ($remainder -ne 0) {
+                    $writer.Write((New-Object byte[] (512 - $remainder)))
                 }
             }
 
+            # End-of-archive marker: two 512-byte zero blocks
             $writer.Write((New-Object byte[] 1024))
             $writer.Close()
             $stream.Close()
-            return $true
         }
+
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
+        return (Test-Path $OutputPath)
     } catch {
+        Remove-Item $tempDir -Recurse -Force -ErrorAction SilentlyContinue
         return $false
     }
 }
@@ -75,11 +117,11 @@ function Invoke-TemplateProcessing {
     $unusedParams = Get-UnusedParams -ConnectionType $ConnectionType -CollectedParams $CollectedParams
 
     foreach ($templateFile in @("program.bas", "comcfg.txt", "config.txt")) {
-        & $OnLog "Traitement de $templateFile..."
+        & $OnLog ((T "GenProcessing") -f $templateFile)
 
         $templatePath = Join-Path $TemplatesDir $templateFile
         if (-not (Test-Path $templatePath)) {
-            throw "Template manquant: $templatePath"
+            throw ((T "GenTemplateMissing") -f $templatePath)
         }
 
         $lines = Get-Content $templatePath
@@ -91,7 +133,7 @@ function Invoke-TemplateProcessing {
             foreach ($unusedParam in $unusedParams) {
                 if ($line -match [regex]::Escape("{$unusedParam}")) {
                     $skipLine = $true
-                    & $OnLog "  Suppression: $unusedParam"
+                    & $OnLog ((T "GenRemoving") -f $unusedParam)
                     break
                 }
             }
@@ -173,97 +215,100 @@ function New-ProcedureDocument {
     $connectionType = $State.ConnectionType
     $skipFirmwareUpdate = $State.SkipFirmwareUpdate
 
-    # Build parameter list (no passwords)
-    $paramLines = ""
+    $sb = New-Object System.Text.StringBuilder
+
+    # Title
+    [void]$sb.AppendLine((T "Proc_Title"))
+    [void]$sb.AppendLine((T "Proc_Separator"))
+
+    if ($skipFirmwareUpdate) {
+        [void]$sb.AppendLine((T "Proc_NoFwUpdate"))
+    }
+    [void]$sb.AppendLine("")
+
+    # Parameter list (no passwords)
+    [void]$sb.AppendLine((T "Proc_Intro"))
     foreach ($key in ($collectedParams.Keys | Sort-Object)) {
         if ($key -notin @("Password", "PPPClPassword1", "AccountAuthorization", "WANPxyPass")) {
-            $paramLines += "- $key : $($collectedParams[$key])`n"
+            [void]$sb.AppendLine("- $key : $($collectedParams[$key])")
+        }
+    }
+    [void]$sb.AppendLine("")
+
+    # Step 1: Preparation (always)
+    [void]$sb.AppendLine((T "Proc_Step1Title"))
+    [void]$sb.AppendLine((T "Proc_Step1_1"))
+    [void]$sb.AppendLine((T "Proc_Step1_2"))
+    [void]$sb.AppendLine((T "Proc_Step1_3"))
+    [void]$sb.AppendLine("")
+
+    if ($skipFirmwareUpdate) {
+        # No firmware update: single insertion
+        [void]$sb.AppendLine((T "Proc_Step2NoFwTitle"))
+        [void]$sb.AppendLine((T "Proc_Step2NoFw_1"))
+        [void]$sb.AppendLine((T "Proc_Step2NoFw_2"))
+        [void]$sb.AppendLine((T "Proc_Step2NoFw_3"))
+        [void]$sb.AppendLine((T "Proc_Step2NoFw_4"))
+        [void]$sb.AppendLine((T "Proc_Step2NoFw_5"))
+        [void]$sb.AppendLine("")
+
+        # Remote access or Datalogger verification
+        if ($connectionType -eq "Datalogger") {
+            [void]$sb.AppendLine(("{0}3 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_DLTitle")))
+            [void]$sb.AppendLine((T "Proc_DLText"))
+        } else {
+            [void]$sb.AppendLine(("{0}3 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_RemoteTitle")))
+            [void]$sb.AppendLine((T "Proc_Remote_Intro"))
+            [void]$sb.AppendLine((T "Proc_Remote_1"))
+            [void]$sb.AppendLine((T "Proc_Remote_2"))
+            [void]$sb.AppendLine((T "Proc_Remote_3"))
+            [void]$sb.AppendLine((T "Proc_Remote_4"))
+        }
+    } else {
+        # With firmware update: two insertions
+        [void]$sb.AppendLine((T "Proc_Step2FwTitle"))
+        [void]$sb.AppendLine((T "Proc_Step2Fw_1"))
+        [void]$sb.AppendLine((T "Proc_Step2Fw_2"))
+        [void]$sb.AppendLine((T "Proc_Step2Fw_3"))
+        [void]$sb.AppendLine((T "Proc_Step2Fw_4"))
+        [void]$sb.AppendLine((T "Proc_Step2Fw_5"))
+        [void]$sb.AppendLine("")
+
+        [void]$sb.AppendLine((T "Proc_Step3FwTitle"))
+        [void]$sb.AppendLine((T "Proc_Step3Fw_1"))
+        [void]$sb.AppendLine((T "Proc_Step3Fw_2"))
+        [void]$sb.AppendLine((T "Proc_Step3Fw_3"))
+        [void]$sb.AppendLine((T "Proc_Step3Fw_4"))
+        [void]$sb.AppendLine((T "Proc_Step3Fw_5"))
+        [void]$sb.AppendLine("")
+
+        # Remote access or Datalogger verification
+        if ($connectionType -eq "Datalogger") {
+            [void]$sb.AppendLine(("{0}4 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_DLTitle")))
+            [void]$sb.AppendLine((T "Proc_DLText"))
+        } else {
+            [void]$sb.AppendLine(("{0}4 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_RemoteTitle")))
+            [void]$sb.AppendLine((T "Proc_Remote_Intro"))
+            [void]$sb.AppendLine((T "Proc_Remote_1"))
+            [void]$sb.AppendLine((T "Proc_Remote_2"))
+            [void]$sb.AppendLine((T "Proc_Remote_3"))
+            [void]$sb.AppendLine((T "Proc_Remote_4"))
         }
     }
 
+    [void]$sb.AppendLine("")
+    [void]$sb.AppendLine((T "Proc_Conclusion"))
     if ($skipFirmwareUpdate) {
-        $proc = @"
-PROCEDURE DETAILLEE APRES PREPARATION DE LA CARTE SD
---------------------------------------------------
-CONFIGURATION SANS MISE A JOUR FIRMWARE
-
-Configuration generee dynamiquement avec les parametres suivants:
-$paramLines
-ETAPE 1 : PREPARATION
-1. Dans Windows : faites un clic droit sur le lecteur SD et selectionnez "Ejecter"
-2. Attendez que Windows confirme que vous pouvez retirer la carte en toute securite
-3. Retirez physiquement la carte SD de votre ordinateur
-
-ETAPE 2 : INSERTION DE LA CARTE (CONFIGURATION UNIQUEMENT)
-1. Assurez-vous que l Ewon Flexy est SOUS TENSION et que la LED USR clignote en VERT
-2. Inserez la carte SD dans l emplacement prevu sur l Ewon
-3. ATTENDEZ que la LED USR devienne VERT FIXE (cette etape peut prendre quelques minutes)
-4. Lorsque la LED est VERT FIXE, retirez la carte SD
-5. La configuration est terminee lorsque la LED USR revient a un clignotement VERT regulier
-
-ETAPE 3 : DEMANDE D ACCES A DISTANCE
-Transmettez aux administrateurs/configurateurs les informations suivantes :
-- Numero de serie de l Ewon
-- Information carte SIM (si 4G)
-- Identifiant IFS du site client
-- Nom souhaite pour l Ewon
-
-CONCLUSION
-Votre Ewon Flexy est maintenant configure.
-"@
+        [void]$sb.AppendLine((T "Proc_ConclusionNoFw"))
     } else {
-        $proc = @"
-PROCEDURE DETAILLEE APRES PREPARATION DE LA CARTE SD
---------------------------------------------------
-
-Configuration generee dynamiquement avec les parametres suivants:
-$paramLines
-ETAPE 1 : PREPARATION
-1. Dans Windows : faites un clic droit sur le lecteur SD et selectionnez "Ejecter"
-2. Attendez que Windows confirme que vous pouvez retirer la carte en toute securite
-3. Retirez physiquement la carte SD de votre ordinateur
-
-ETAPE 2 : PREMIERE INSERTION (MISE A JOUR DU FIRMWARE)
-1. Assurez-vous que l Ewon Flexy est HORS TENSION
-2. Inserez la carte SD dans l emplacement prevu sur l Ewon
-3. Mettez l Ewon sous tension
-4. ATTENDEZ que la LED USR devienne VERT FIXE (cette etape peut prendre plusieurs minutes)
-5. Lorsque la LED est VERT FIXE, retirez la carte SD
-
-ETAPE 3 : DEUXIEME INSERTION (CONFIGURATION)
-1. ATTENDEZ que la LED USR clignote en VERT (alternance 500ms allumee/500ms eteinte)
-2. Une fois que la LED clignote, reinserez la carte SD
-3. ATTENDEZ a nouveau que la LED USR devienne VERT FIXE
-4. Lorsque la LED est VERT FIXE, retirez definitivement la carte SD
-5. La configuration est terminee lorsque la LED USR revient a un clignotement VERT regulier
-
-ETAPE 4 : DEMANDE D ACCES A DISTANCE
-Transmettez aux administrateurs/configurateurs les informations suivantes :
-- Numero de serie de l Ewon
-- Information carte SIM (si 4G)
-- Identifiant IFS du site client
-- Nom souhaite pour l Ewon
-
-CONCLUSION
-Votre Ewon Flexy est maintenant configure et a jour.
-"@
+        [void]$sb.AppendLine((T "Proc_ConclusionFw"))
     }
 
-    # Datalogger: replace remote access step
-    if ($connectionType -eq "Datalogger") {
-        $stepPattern = if ($skipFirmwareUpdate) { "ETAPE 3" } else { "ETAPE 4" }
-        $proc = $proc -replace "$stepPattern : DEMANDE D ACCES A DISTANCE[\s\S]*?CONCLUSION", @"
-$stepPattern : VERIFICATION DE LA COMMUNICATION
-L'Ewon communique via son interface LAN uniquement (pas de Talk2M).
-Verifiez que l'Ewon peut atteindre le serveur push.myclauger.com via le reseau local.
-
-CONCLUSION
-"@
-    }
+    $proc = $sb.ToString()
 
     $procPath = Join-Path ([Environment]::GetFolderPath('Desktop')) "Procedure_Ewon.txt"
-    $proc | Out-File -FilePath $procPath -Encoding ASCII
-    return $procPath
+    $proc | Out-File -FilePath $procPath -Encoding UTF8
+    return @{ Path = $procPath; Text = $proc }
 }
 
 function Invoke-Generation {
@@ -278,7 +323,7 @@ function Invoke-Generation {
     $sdRoot = $State.SdDrive
 
     # Inject auto parameters
-    & $OnProgress 5 "Calcul des parametres automatiques..."
+    & $OnProgress 5 (T "GenAutoParams")
     $autoParams = Get-AutoParamValues -ConnectionType $State.ConnectionType
     foreach ($key in $autoParams.Keys) {
         $State.CollectedParams[$key] = $autoParams[$key]
@@ -293,15 +338,15 @@ function Invoke-Generation {
 
     # Download firmware if Online mode
     if ($State.Mode -eq "Online" -and -not $State.SkipFirmwareUpdate -and $State.TargetFirmware -and $State.Manifest) {
-        & $OnProgress 10 "Telechargement firmware..."
+        & $OnProgress 10 ((T "FwDownloading") -f $State.TargetFirmware)
         $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware }
         $hasEbu = [bool]$fwInfo.hasEbu
         $ok = Download-HMSFirmware -Version $State.TargetFirmware -HasEbu $hasEbu -OnLog $OnLog
-        if (-not $ok) { throw "Telechargement firmware echoue." }
+        if (-not $ok) { throw (T "GenFwDownloadFail") }
     }
 
     # Process templates
-    & $OnProgress 30 "Traitement des templates..."
+    & $OnProgress 30 ((T "GenProcessing") -f "templates")
     $tempDir = Join-Path $env:TEMP ("ewon_config_" + (Get-Date -Format "yyyyMMddHHmmss"))
     New-Dir $tempDir | Out-Null
 
@@ -312,50 +357,50 @@ function Invoke-Generation {
             -OutputDir $tempDir -OnLog $OnLog
 
         # Create backup.tar
-        & $OnProgress 50 "Creation de backup.tar..."
+        & $OnProgress 50 ((T "GenProcessing") -f "backup.tar")
         $backupTarPath = Join-Path $sdRoot "backup.tar"
         $filesToTar = Get-ChildItem $tempDir -File | Select-Object -ExpandProperty FullName
         $ok = New-TarArchive -Files $filesToTar -OutputPath $backupTarPath
-        if (-not $ok) { throw "Echec de la creation de backup.tar" }
-        & $OnLog "[OK] backup.tar cree"
+        if (-not $ok) { throw (T "GenTarFail") }
+        & $OnLog (T "GenTarOk")
     } finally {
         if (Test-Path $tempDir) { Remove-Item $tempDir -Recurse -Force }
     }
 
     # Handle T2M for Datalogger (remove if exists)
     if ($State.ConnectionType -eq "Datalogger") {
-        & $OnProgress 60 "Nettoyage T2M..."
+        & $OnProgress 60 (T "GenT2MCleanup")
         Remove-T2MFile -SdRoot $sdRoot
     }
 
     # Copy firmware
     if (-not $State.SkipFirmwareUpdate -and $State.TargetFirmware) {
-        & $OnProgress 70 "Copie des firmwares..."
+        & $OnProgress 70 (T "GenFwCopy")
         Copy-FirmwareToSD -SdRoot $sdRoot -TargetFw $State.TargetFirmware `
             -CurrentFw $State.CurrentFirmware -Manifest $State.Manifest -OnLog $OnLog
     }
 
     # Write T2M
     if ($State.Mode -ne "Preparation" -and $State.ConnectionType -ne "Datalogger") {
-        & $OnProgress 80 "Ecriture T2M.txt..."
+        & $OnProgress 80 (T "GenT2MWrite")
         Write-T2MFile -SdRoot $sdRoot -T2MKey $State.T2MKey -T2MNote $State.T2MNote
-        & $OnLog "[OK] T2M.txt ecrit"
+        & $OnLog (T "GenT2MOk")
     }
 
     # Verify
-    & $OnProgress 90 "Verification des fichiers..."
+    & $OnProgress 90 (T "GenVerify")
     $verification = Test-SDContents -SdRoot $sdRoot -State $State
     foreach ($f in $verification.Files) {
-        $status = if ($f.Found) { "[OK]" } else { "[MANQUANT]" }
+        $status = if ($f.Found) { T "GenFileOk" } else { T "GenFileMissing" }
         & $OnLog "$status $($f.File)"
     }
-    if (-not $verification.AllOk) { throw "Fichiers manquants sur la SD." }
+    if (-not $verification.AllOk) { throw (T "GenFilesMissing") }
 
     # Generate procedure
-    & $OnProgress 95 "Generation de la procedure..."
-    $procPath = New-ProcedureDocument -State $State
-    & $OnLog "[OK] Procedure: $procPath"
-    try { Start-Process notepad.exe $procPath | Out-Null } catch {}
+    & $OnProgress 95 (T "GenProcGen")
+    $procResult = New-ProcedureDocument -State $State
+    & $OnLog ((T "GenProcSaved") -f $procResult.Path)
+    Set-AppStateValue -Key "ProcedureText" -Value $procResult.Text
 
-    & $OnProgress 100 "Termine !"
+    & $OnProgress 100 (T "GenDone")
 }

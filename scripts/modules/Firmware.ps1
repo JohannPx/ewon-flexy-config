@@ -27,11 +27,11 @@ function Download-HMSFirmware {
 
     $ebusPath = Join-Path $versionDir "ewonfwr.ebus"
     if (Test-Path $ebusPath) {
-        & $OnLog "Firmware $Version deja en cache"
+        & $OnLog ((T "FwCached") -f $Version)
         return $true
     }
 
-    & $OnLog "Telechargement firmware $Version..."
+    & $OnLog ((T "FwDownloading") -f $Version)
     try {
         $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma_secure.ebus"
         Invoke-WebRequest -Uri $ebusUrl -OutFile $ebusPath -UseBasicParsing
@@ -42,15 +42,80 @@ function Download-HMSFirmware {
             try {
                 Invoke-WebRequest -Uri $ebuUrl -OutFile $ebuPath -UseBasicParsing
             } catch {
-                & $OnLog "Note: .ebu non disponible pour $Version (OK)"
+                & $OnLog ((T "FwEbuNote") -f $Version)
             }
         }
 
-        & $OnLog "[OK] Firmware $Version telecharge"
+        & $OnLog ((T "FwDownloaded") -f $Version)
         return $true
     } catch {
-        & $OnLog "[ERREUR] $($_.Exception.Message)"
+        & $OnLog "$(T 'ErrorPrefix') $($_.Exception.Message)"
         return $false
+    }
+}
+
+function Start-BackgroundFirmwareCache {
+    param([array]$Firmwares, [string]$CacheDir)
+
+    # Synchronized hashtable shared between UI thread and background runspace
+    $Script:FwCacheState = [hashtable]::Synchronized(@{
+        Status    = "Starting"
+        CurrentFw = ""
+        Index     = 0
+        Total     = $Firmwares.Count
+        Done      = $false
+    })
+
+    $ps = [powershell]::Create()
+    $ps.Runspace = [runspacefactory]::CreateRunspace()
+    $ps.Runspace.Open()
+
+    $null = $ps.AddScript({
+        param($FwList, $State, $BaseCache)
+        $baseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
+        foreach ($fw in $FwList) {
+            $State.CurrentFw = $fw.version
+            $State.Status = "Downloading"
+            try {
+                $versionDir = Join-Path $BaseCache "firmware\$($fw.version)"
+                if (-not (Test-Path $versionDir)) {
+                    New-Item -Path $versionDir -ItemType Directory -Force | Out-Null
+                }
+                $ebusPath = Join-Path $versionDir "ewonfwr.ebus"
+                if (-not (Test-Path $ebusPath)) {
+                    $vUrl = $fw.version -replace '\.', '-'
+                    $wc = New-Object System.Net.WebClient
+                    $wc.DownloadFile("$baseUrl/er-$vUrl-arm-ma_secure.ebus", $ebusPath)
+                    $wc.Dispose()
+                }
+                $hasEbu = if ($fw.hasEbu) { [bool]$fw.hasEbu } else { $false }
+                if ($hasEbu) {
+                    $ebuPath = Join-Path $versionDir "ewonfwr.ebu"
+                    if (-not (Test-Path $ebuPath)) {
+                        $vUrl = $fw.version -replace '\.', '-'
+                        $wc = New-Object System.Net.WebClient
+                        try { $wc.DownloadFile("$baseUrl/er-$vUrl-arm-ma.ebu", $ebuPath) } catch {}
+                        $wc.Dispose()
+                    }
+                }
+            } catch {}
+            $State.Index++
+        }
+        $State.Status = "Complete"
+        $State.Done = $true
+    }).AddArgument($Firmwares).AddArgument($Script:FwCacheState).AddArgument($CacheDir)
+
+    $Script:FwCachePowerShell = $ps
+    $Script:FwCacheAsync = $ps.BeginInvoke()
+}
+
+function Stop-BackgroundFirmwareCache {
+    if ($Script:FwCachePowerShell) {
+        try { $Script:FwCachePowerShell.Stop() } catch {}
+        try { $Script:FwCachePowerShell.Runspace.Close() } catch {}
+        try { $Script:FwCachePowerShell.Dispose() } catch {}
+        $Script:FwCachePowerShell = $null
+        $Script:FwCacheAsync = $null
     }
 }
 
@@ -115,7 +180,7 @@ function Copy-FirmwareToSD {
     $fwDir = Join-Path $cacheDir "firmware"
     $targetFwDir = Join-Path $fwDir $TargetFw
 
-    if (-not (Test-Path $targetFwDir)) { throw "Firmware non trouve dans le cache: $targetFwDir" }
+    if (-not (Test-Path $targetFwDir)) { throw ((T "FwNotFound") -f $targetFwDir) }
 
     $ebus = Join-Path $targetFwDir "ewonfwr.ebus"
     $ebu  = Join-Path $targetFwDir "ewonfwr.ebu"
@@ -123,10 +188,10 @@ function Copy-FirmwareToSD {
     $filesToCopy = @()
     if ($CurrentFw -eq "14.x" -and (Test-Path $ebu)) {
         $filesToCopy = @($ebus, $ebu)
-        & $OnLog "Migration 14.x -> $TargetFw : ewonfwr.ebus et ewonfwr.ebu"
+        & $OnLog ((T "FwMigration") -f $TargetFw)
     } else {
         $filesToCopy = @($ebus)
-        & $OnLog "Mise a jour -> $TargetFw : ewonfwr.ebus"
+        & $OnLog ((T "FwUpdateMsg") -f $TargetFw)
     }
 
     foreach ($src in $filesToCopy) {
@@ -134,9 +199,9 @@ function Copy-FirmwareToSD {
         $dest = Join-Path $SdRoot $leaf
         if (Test-Path $src) {
             Copy-Item -Path $src -Destination $dest -Force
-            & $OnLog "+ $leaf copie"
+            & $OnLog ((T "FwCopied") -f $leaf)
         } else {
-            & $OnLog "! Fichier manquant: $src"
+            & $OnLog ((T "FwFileMissing") -f $src)
         }
     }
 }

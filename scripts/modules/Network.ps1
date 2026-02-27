@@ -10,6 +10,16 @@ function Initialize-Network {
 
 function Get-LocalCacheDir { return $Script:LocalCacheDir }
 
+function Test-InternetConnectivity {
+    try {
+        $null = Invoke-WebRequest -Uri "https://raw.githubusercontent.com/$Script:GitHubRepo/$Script:GitHubBranch/manifest.json" `
+            -UseBasicParsing -TimeoutSec 5 -Method Head
+        return $true
+    } catch {
+        return $false
+    }
+}
+
 function New-Dir([string]$Path) {
     if (-not (Test-Path $Path)) { New-Item -ItemType Directory -Path $Path -Force | Out-Null }
     return $Path
@@ -25,12 +35,12 @@ function Download-Template {
     $url = "https://raw.githubusercontent.com/$Script:GitHubRepo/$Script:GitHubBranch/templates/$FileName"
     try {
         New-Dir (Split-Path $LocalPath) | Out-Null
-        & $OnLog "Telechargement template $FileName..."
+        & $OnLog ((T "NetTemplateDownload") -f $FileName)
         Invoke-WebRequest -Uri $url -OutFile $LocalPath -UseBasicParsing
-        & $OnLog "  [OK] $FileName"
+        & $OnLog ((T "NetTemplateOk") -f $FileName)
         return $true
     } catch {
-        & $OnLog "[ERREUR] $($_.Exception.Message)"
+        & $OnLog "$(T 'ErrorPrefix') $($_.Exception.Message)"
         return $false
     }
 }
@@ -40,11 +50,11 @@ function Get-Manifest {
 
     $manifestUrl = "https://raw.githubusercontent.com/$Script:GitHubRepo/$Script:GitHubBranch/manifest.json"
     try {
-        & $OnLog "Recuperation du manifest..."
+        & $OnLog (T "NetManifestRecover")
         $json = Invoke-RestMethod -Uri $manifestUrl -UseBasicParsing
         return $json
     } catch {
-        & $OnLog "Manifest indisponible en ligne. Recherche en cache..."
+        & $OnLog (T "NetManifestCache")
         $cached = Join-Path $Script:LocalCacheDir "manifest.json"
         if (Test-Path $cached) { return Get-Content $cached | ConvertFrom-Json }
         return $null

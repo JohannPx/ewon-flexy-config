@@ -7,7 +7,7 @@
 
 ## 🎯 À propos de cette version
 
-Cette release contient la dernière version du script de préparation de cartes SD pour Ewon Flexy avec **interface graphique WPF** (wizard 8 étapes) et génération dynamique de configuration.
+Cette release contient la dernière version du script de préparation de cartes SD pour Ewon Flexy avec **interface graphique WPF multilingue** (wizard 8 étapes, FR/EN/ES/IT) et génération dynamique de configuration.
 
 ### 📝 Dernier changement
 ```
@@ -20,7 +20,7 @@ Cette release contient la dernière version du script de préparation de cartes 
 
 Téléchargez le fichier **`PrepareEwonSD_latest.ps1`** ci-dessous.
 
-> **Fichier unique auto-contenu** : les 8 modules sont intégrés dans le script lors du build. Aucune dépendance externe, PowerShell 5.1 natif Windows suffit.
+> **Fichier unique auto-contenu** : les 9 modules sont intégrés dans le script lors du build. Aucune dépendance externe, PowerShell 5.1 natif Windows suffit.
 
 ### 🚀 Installation rapide
 
@@ -42,15 +42,28 @@ Cette commande execute le script en contournant temporairement la restriction, s
 
 ## ✨ Fonctionnalités principales
 
+### 🌍 Multilingue (FR/EN/ES/IT)
+- ✅ Sélection de la langue via drapeaux sur la première page
+- ✅ Changement instantané de toute l'interface (labels, messages, procédures)
+- ✅ Fallback automatique vers le français
+
 ### 🖥️ Interface graphique WPF
 - ✅ Wizard 8 étapes avec navigation Précédent/Suivant
+- ✅ Icône SD personnalisée (barre de titre + barre des tâches)
 - ✅ Validation temps réel avec indicateurs visuels (✔/✘)
+- ✅ Champs IP WAN obligatoires en mode statique Ethernet
 - ✅ Champs conditionnels dynamiques (DHCP masque les champs IP, proxy conditionnel...)
 - ✅ Barre de progression et log de génération en temps réel
+
+### 📦 Cache intelligent
+- ✅ Téléchargement automatique de tous les firmwares en arrière-plan
+- ✅ Interface réactive pendant le cache (runspace asynchrone)
+- ✅ Progression affichée dans la bannière de statut
 
 ### 🔄 Génération dynamique
 - ✅ Configuration créée à la volée selon vos paramètres
 - ✅ Suppression automatique des paramètres inutilisés (4G vs Ethernet vs Datalogger)
+- ✅ Génération tar robuste avec fallback POSIX intégré
 - ✅ Procédure détaillée générée automatiquement
 
 ### 💾 Modes disponibles

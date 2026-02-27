@@ -54,7 +54,7 @@ function New-ParamFieldRow {
 
     # Label
     $label = New-Object System.Windows.Controls.TextBlock
-    $label.Text = if ($ParamDef.Description) { $ParamDef.Description } else { $ParamDef.Param }
+    $label.Text = if ($ParamDef.Description) { T $ParamDef.Description } else { $ParamDef.Param }
     $label.VerticalAlignment = [System.Windows.VerticalAlignment]::Center
     $label.TextWrapping = [System.Windows.TextWrapping]::Wrap
     $label.FontSize = 12
@@ -160,14 +160,33 @@ function Get-RemovableDrives {
     try {
         Get-WmiObject -Class Win32_LogicalDisk -Filter "DriveType=2" | ForEach-Object {
             $sizeGB = if ($_.Size) { [math]::Round($_.Size / 1GB, 1) } else { 0 }
-            $volName = if ($_.VolumeName) { $_.VolumeName } else { "Sans nom" }
+            $volName = if ($_.VolumeName) { $_.VolumeName } else { T "DriveNoName" }
             $drives += @{
                 DeviceID   = $_.DeviceID
                 VolumeName = $volName
                 SizeGB     = $sizeGB
-                Display    = "$($_.DeviceID)\ - $volName ($($sizeGB) Go)"
+                Display    = "$($_.DeviceID)\ - $volName ($($sizeGB) $(T 'SizeUnitGB'))"
             }
         }
     } catch {}
     return $drives
+}
+
+function New-SectionHeader {
+    param([string]$Title)
+
+    $border = New-Object System.Windows.Controls.Border
+    $border.Margin = [System.Windows.Thickness]::new(0, 12, 0, 4)
+    $border.BorderBrush = [System.Windows.Media.BrushConverter]::new().ConvertFrom("#1A5276")
+    $border.BorderThickness = [System.Windows.Thickness]::new(0, 0, 0, 1)
+    $border.Padding = [System.Windows.Thickness]::new(0, 0, 0, 4)
+
+    $tb = New-Object System.Windows.Controls.TextBlock
+    $tb.Text = $Title
+    $tb.FontSize = 13
+    $tb.FontWeight = [System.Windows.FontWeights]::SemiBold
+    $tb.Foreground = [System.Windows.Media.BrushConverter]::new().ConvertFrom("#1A5276")
+
+    $border.Child = $tb
+    return $border
 }

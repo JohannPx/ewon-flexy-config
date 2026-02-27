@@ -19,6 +19,7 @@ jobs:
         run: |
           # Concatenate modules in dependency order, then the launcher
           cat ./scripts/modules/AppState.ps1 \
+              ./scripts/modules/Localization.ps1 \
               ./scripts/modules/Validation.ps1 \
               ./scripts/modules/Config.ps1 \
               ./scripts/modules/Network.ps1 \

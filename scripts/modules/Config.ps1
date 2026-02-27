@@ -2,47 +2,47 @@
 
 $Script:ParameterDefinitions = @(
     # Common parameters (always asked)
-    @{File="comcfg.txt"; Param="EthIP"; Default="192.168.253.254"; Description="Adresse IP LAN"; Type="IPv4"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="EthMask"; Default="255.255.255.0"; Description="Masque sous-reseau LAN"; Type="IPv4"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="config.txt"; Param="Identification"; Default="Clauger auto registered Ewon"; Description="Identification Ewon"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="config.txt"; Param="NtpServerAddr"; Default="ntp.talk2m.com"; Description="Adresse serveur NTP"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="config.txt"; Param="NtpServerPort"; Default="123"; Description="Port serveur NTP"; Type="Integer"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="config.txt"; Param="Timezone"; Default="Europe/Paris"; Description="Fuseau horaire"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="config.txt"; Param="Password"; Default="adm"; Description="Mot de passe admin (max 24 car.)"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="program.bas"; Param="AccountName"; Default=""; Description="Nom compte MyPortal3E"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="program.bas"; Param="AccountAuthorization"; Default=""; Description="Autorisation MyPortal3E"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="EthIP"; Default="192.168.253.254"; Description="Desc_EthIP"; Type="IPv4"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_LAN"}
+    @{File="comcfg.txt"; Param="EthMask"; Default="255.255.255.0"; Description="Desc_EthMask"; Type="IPv4"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_LAN"}
+    @{File="config.txt"; Param="Identification"; Default="Clauger auto registered Ewon"; Description="Desc_Identification"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_Identification"}
+    @{File="config.txt"; Param="NtpServerAddr"; Default="ntp.talk2m.com"; Description="Desc_NtpServer"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_NTP"}
+    @{File="config.txt"; Param="NtpServerPort"; Default="123"; Description="Desc_NtpPort"; Type="Integer"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_NTP"}
+    @{File="config.txt"; Param="Timezone"; Default="Europe/Paris"; Description="Desc_Timezone"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_NTP"}
+    @{File="config.txt"; Param="Password"; Default="adm"; Description="Desc_Password"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_Security"}
+    @{File="program.bas"; Param="AccountName"; Default=""; Description="Desc_AccountName"; Type="Text"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_MyPortal"}
+    @{File="program.bas"; Param="AccountAuthorization"; Default=""; Description="Desc_AccountAuth"; Type="Password"; AlwaysAsk=$true; ConnectionType=$null; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_MyPortal"}
 
     # Connection type specific (automatic values - never shown in UI)
-    @{File="comcfg.txt"; Param="WANCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="2"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="WANItfProt"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="3"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="WANPermCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="1"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="LANWANConfig"; Default=$null; Description=$null; Value4G="8"; ValueEthernet="8"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="WANCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="2"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
+    @{File="comcfg.txt"; Param="WANItfProt"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="3"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
+    @{File="comcfg.txt"; Param="WANPermCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="1"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
+    @{File="comcfg.txt"; Param="LANWANConfig"; Default=$null; Description=$null; Value4G="8"; ValueEthernet="8"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
 
     # Ethernet specific
-    @{File="comcfg.txt"; Param="UseBOOTP2"; Default="2"; Description="Attribution IP WAN"; Type="Choice"; Choices=@("0","2"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null}
-    @{File="comcfg.txt"; Param="EthIpAddr2"; Default=""; Description="Adresse IP WAN"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="EthIpMask2"; Default="255.255.255.0"; Description="Masque sous-reseau WAN"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Passerelle WAN"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="DNS 1"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="DNS 2"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="UseBOOTP2"; Default="2"; Description="Desc_UseBOOTP2"; Type="Choice"; Choices=@("0","2"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Group="Group_WAN"}
+    @{File="comcfg.txt"; Param="EthIpAddr2"; Default=""; Description="Desc_EthIpAddr2"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Required=$true; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_WAN"}
+    @{File="comcfg.txt"; Param="EthIpMask2"; Default="255.255.255.0"; Description="Desc_EthIpMask2"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Required=$true; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_WAN"}
+    @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Desc_EthGW"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Required=$true; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_WAN"}
+    @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="Desc_EthDns1"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Required=$true; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_WAN"}
+    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="Desc_EthDns2"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="UseBOOTP2=0"; Required=$true; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_WAN"}
 
     # Ethernet Proxy
-    @{File="comcfg.txt"; Param="WANPxyMode"; Default="0"; Description="Mode Proxy WAN"; Type="Choice"; Choices=@("0","1","2","10"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null}
-    @{File="comcfg.txt"; Param="WANPxyAddr"; Default=""; Description="Adresse Proxy"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="WANPxyPort"; Default="8080"; Description="Port Proxy"; Type="Integer"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="WANPxyUsr"; Default=""; Description="Utilisateur Proxy"; Type="Text"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="WANPxyPass"; Default=""; Description="Mot de passe Proxy"; Type="Password"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="WANPxyMode"; Default="0"; Description="Desc_WANPxyMode"; Type="Choice"; Choices=@("0","1","2","10"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Group="Group_Proxy"}
+    @{File="comcfg.txt"; Param="WANPxyAddr"; Default=""; Description="Desc_WANPxyAddr"; Type="IPv4"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_Proxy"}
+    @{File="comcfg.txt"; Param="WANPxyPort"; Default="8080"; Description="Desc_WANPxyPort"; Type="Integer"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode!=0"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_Proxy"}
+    @{File="comcfg.txt"; Param="WANPxyUsr"; Default=""; Description="Desc_WANPxyUsr"; Type="Text"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_Proxy"}
+    @{File="comcfg.txt"; Param="WANPxyPass"; Default=""; Description="Desc_WANPxyPass"; Type="Password"; ConnectionType="Ethernet"; AlwaysAsk=$false; Condition="WANPxyMode=1,WANPxyMode=2"; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_Proxy"}
 
     # 4G specific
-    @{File="comcfg.txt"; Param="PIN"; Default="0000"; Description="Code PIN modem (4 chiffres)"; Type="PIN"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="PdpApn"; Default="orange"; Description="APN"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="PPPClUserName1"; Default="orange"; Description="Utilisateur APN"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="PPPClPassword1"; Default="orange"; Description="Mot de passe APN"; Type="Password"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="PIN"; Default="0000"; Description="Desc_PIN"; Type="PIN"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_SIM"}
+    @{File="comcfg.txt"; Param="PdpApn"; Default="orange"; Description="Desc_PdpApn"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_APN"}
+    @{File="comcfg.txt"; Param="PPPClUserName1"; Default="orange"; Description="Desc_PPPUser"; Type="Text"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_APN"}
+    @{File="comcfg.txt"; Param="PPPClPassword1"; Default="orange"; Description="Desc_PPPPass"; Type="Password"; ConnectionType="4G"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_APN"}
 
     # Datalogger specific
-    @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Passerelle (via LAN)"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="DNS 1"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
-    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="DNS 2"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null}
+    @{File="comcfg.txt"; Param="EthGW"; Default=""; Description="Desc_EthGW"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_NetConfig"}
+    @{File="comcfg.txt"; Param="EthDns1"; Default="8.8.8.8"; Description="Desc_EthDns1"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_NetConfig"}
+    @{File="comcfg.txt"; Param="EthDns2"; Default="1.1.1.1"; Description="Desc_EthDns2"; Type="IPv4"; ConnectionType="Datalogger"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Choices=$null; Group="Group_NetConfig"}
 )
 
 function Get-ParameterDefinitions {
@@ -109,8 +109,8 @@ function Get-ConditionTriggers {
 function Get-ChoiceLabels {
     param([string]$ParamName)
     switch ($ParamName) {
-        "UseBOOTP2"  { return [ordered]@{ "0" = "Statique"; "2" = "DHCP" } }
-        "WANPxyMode" { return [ordered]@{ "0" = "Sans proxy"; "1" = "Basic auth"; "2" = "NTLM auth"; "10" = "Sans authentification" } }
+        "UseBOOTP2"  { return [ordered]@{ "0" = (T "Choice_Static"); "2" = (T "Choice_DHCP") } }
+        "WANPxyMode" { return [ordered]@{ "0" = (T "Choice_NoProxy"); "1" = (T "Choice_BasicAuth"); "2" = (T "Choice_NTLMAuth"); "10" = (T "Choice_NoAuth") } }
         default      { return [ordered]@{} }
     }
 }
@@ -127,7 +127,6 @@ function Get-UnusedParams {
     } elseif ($ConnectionType -eq "Datalogger") {
         $unused = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1", "UseBOOTP2", "EthIpAddr2", "EthIpMask2", "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass")
     } else {
-        # Ethernet
         $unused = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1")
 
         if ($CollectedParams["UseBOOTP2"] -eq "2") {
