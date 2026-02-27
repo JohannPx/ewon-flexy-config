@@ -17,7 +17,18 @@ jobs:
 
       - name: Build Script
         run: |
-          cp ./scripts/Prepare_Ewon_SD.ps1 ./PrepareEwonSD_latest.ps1
+          # Concatenate modules in dependency order, then the launcher
+          cat ./scripts/modules/AppState.ps1 \
+              ./scripts/modules/Localization.ps1 \
+              ./scripts/modules/Validation.ps1 \
+              ./scripts/modules/Config.ps1 \
+              ./scripts/modules/Network.ps1 \
+              ./scripts/modules/Firmware.ps1 \
+              ./scripts/modules/Generator.ps1 \
+              ./scripts/modules/UIHelpers.ps1 \
+              ./scripts/modules/UI.ps1 \
+              ./scripts/Prepare_Ewon_SD.ps1 \
+          > ./PrepareEwonSD_latest.ps1
 
       - name: Load release body template
         id: release_body

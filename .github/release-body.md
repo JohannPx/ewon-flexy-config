@@ -1,13 +1,13 @@
 # 📦 Ewon Flexy SD Preparator {{VERSION}}
 
-**Date de release** : {{DATE}}  
+**Date de release** : {{DATE}}
 **Commit** : `{{COMMIT_SHA}}`
 
 ---
 
 ## 🎯 À propos de cette version
 
-Cette release automatique contient la dernière version du script de préparation de cartes SD pour Ewon Flexy avec génération dynamique de configuration.
+Cette release contient la dernière version du script de préparation de cartes SD pour Ewon Flexy avec **interface graphique WPF multilingue** (wizard 8 étapes, FR/EN/ES/IT) et génération dynamique de configuration.
 
 ### 📝 Dernier changement
 ```
@@ -20,11 +20,13 @@ Cette release automatique contient la dernière version du script de préparatio
 
 Téléchargez le fichier **`PrepareEwonSD_latest.ps1`** ci-dessous.
 
+> **Fichier unique auto-contenu** : les 9 modules sont intégrés dans le script lors du build. Aucune dépendance externe, PowerShell 5.1 natif Windows suffit.
+
 ### 🚀 Installation rapide
 
 1. **Télécharger** le script `PrepareEwonSD_latest.ps1`
 2. **Clic-droit** → **Exécuter avec PowerShell**
-3. **Suivre** les instructions à l'écran
+3. **Suivre** le wizard graphique (8 étapes)
 
 ### Probleme de politique d'execution ?
 
@@ -40,10 +42,29 @@ Cette commande execute le script en contournant temporairement la restriction, s
 
 ## ✨ Fonctionnalités principales
 
+### 🌍 Multilingue (FR/EN/ES/IT)
+- ✅ Sélection de la langue via drapeaux sur la première page
+- ✅ Changement instantané de toute l'interface (labels, messages, procédures)
+- ✅ Fallback automatique vers le français
+
+### 🖥️ Interface graphique WPF
+- ✅ Wizard 8 étapes avec navigation Précédent/Suivant
+- ✅ Icône SD personnalisée (barre de titre + barre des tâches)
+- ✅ Validation temps réel avec indicateurs visuels (✔/✘)
+- ✅ Champs IP WAN obligatoires en mode statique Ethernet
+- ✅ Champs conditionnels dynamiques (DHCP masque les champs IP, proxy conditionnel...)
+- ✅ Barre de progression et log de génération en temps réel
+
+### 📦 Cache intelligent
+- ✅ Téléchargement automatique de tous les firmwares en arrière-plan
+- ✅ Interface réactive pendant le cache (runspace asynchrone)
+- ✅ Progression affichée dans la bannière de statut
+
 ### 🔄 Génération dynamique
 - ✅ Configuration créée à la volée selon vos paramètres
 - ✅ Suppression automatique des paramètres inutilisés (4G vs Ethernet vs Datalogger)
-- ✅ Validation intelligente des entrées (IP, PIN, etc.)
+- ✅ Génération tar robuste avec fallback POSIX intégré
+- ✅ Procédure détaillée générée automatiquement
 
 ### 💾 Modes disponibles
 - **ONLINE** : Téléchargement à la demande
@@ -52,7 +73,7 @@ Cette commande execute le script en contournant temporairement la restriction, s
 
 ### 🔐 Sécurité
 - Aucune donnée sensible stockée
-- Saisie masquée des mots de passe
+- Saisie masquée des mots de passe (PasswordBox WPF)
 - Clés Talk2M demandées à chaque utilisation
 
 ---
@@ -75,7 +96,7 @@ Cette commande execute le script en contournant temporairement la restriction, s
 - Identification de l'Ewon
 - Serveur NTP et timezone
 - Mot de passe administrateur
-- Compte et autorisation data
+- Compte et autorisation MyPortal3E
 
 ### Spécifiques Ethernet
 - Mode DHCP ou IP statique
@@ -99,7 +120,7 @@ Cette commande execute le script en contournant temporairement la restriction, s
 En cas de problème :
 1. Vérifiez que vous utilisez la dernière version
 2. Consultez la [documentation](../../README.md)
-3. Ouvrez une [issue](../../issues) si nécessaire
+3. Ouvrez une [issue](../../issues) avec une capture d'écran de l'erreur
 
 ---
 
