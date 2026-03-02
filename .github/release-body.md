@@ -24,15 +24,28 @@ Cette release contient la dernière version du script de préparation de cartes 
 
 Le fichier **`PrepareEwonSD_latest.ps1`** se trouve dans la section **Assets** tout en bas de cette page (cliquez sur **▶ Assets** pour déplier si nécessaire).
 
-### 🚀 Installation rapide
+### 🚀 Lancement
 
 1. **Télécharger** le fichier `PrepareEwonSD_latest.ps1` depuis les **Assets** ci-dessous
-2. **Clic-droit** sur le fichier téléchargé → **Exécuter avec PowerShell**
-3. **Suivre** le wizard graphique (8 étapes)
+2. **Ouvrir PowerShell** : clic-droit sur le menu Démarrer → **Terminal** (ou **Windows PowerShell** sur les versions plus anciennes)
+3. **Lancer** le script avec cette commande :
+
+```powershell
+powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\PrepareEwonSD_latest.ps1"
+```
+
+> 💡 `$HOME\Downloads` correspond au dossier Téléchargements de l'utilisateur courant. Si vous avez déplacé le fichier ailleurs, adaptez le chemin. Exemple depuis le Bureau :
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File "$HOME\Desktop\PrepareEwonSD_latest.ps1"
+> ```
+
+4. **Suivre** le wizard graphique (8 étapes)
+
+L'option `-ExecutionPolicy Bypass` contourne temporairement la politique de sécurité Windows pour cette exécution uniquement — elle ne modifie aucun paramètre système.
 
 ### 🔒 Avertissement de sécurité Windows
 
-Au premier lancement, Windows affiche un **"Avertissement de sécurité"** car le script provient d'Internet :
+Au premier lancement, Windows peut afficher un **"Avertissement de sécurité"** car le script provient d'Internet :
 
 ```
 Avertissement de sécurité
@@ -41,19 +54,9 @@ Voulez-vous exécuter C:\...\PrepareEwonSD_latest.ps1 ?
 [N] Ne pas exécuter  [O] Exécuter une fois  [S] Suspendre  [?] Aide
 ```
 
-**➜ Tapez `O` puis Entrée** pour exécuter le script. C'est un comportement normal de Windows pour tout script téléchargé depuis Internet. Le script ne modifie aucun paramètre système et ne contient aucun code malveillant — il se contente de préparer la carte SD.
+**➜ Tapez `O` puis Entrée** pour exécuter le script. C'est un comportement normal de Windows pour tout script téléchargé depuis Internet.
 
 > 💡 **Astuce** : Pour ne plus voir cet avertissement, faites clic-droit sur le fichier → **Propriétés** → cochez **Débloquer** en bas de la fenêtre → **OK**.
-
-### Problème de politique d'exécution ?
-
-Si vous obtenez l'erreur **"l'exécution de scripts est désactivée sur ce système"** au lieu de l'avertissement ci-dessus, utilisez cette commande dans PowerShell :
-
-```powershell
-powershell -ExecutionPolicy Bypass -File ".\PrepareEwonSD_latest.ps1"
-```
-
-Cette commande exécute le script en contournant temporairement la restriction, sans modifier les paramètres système.
 
 ---
 
