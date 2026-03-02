@@ -17,18 +17,24 @@ jobs:
 
       - name: Build Script
         run: |
-          # Concatenate modules in dependency order, then the launcher
-          cat ./scripts/modules/AppState.ps1 \
-              ./scripts/modules/Localization.ps1 \
-              ./scripts/modules/Validation.ps1 \
-              ./scripts/modules/Config.ps1 \
-              ./scripts/modules/Network.ps1 \
-              ./scripts/modules/Firmware.ps1 \
-              ./scripts/modules/Generator.ps1 \
-              ./scripts/modules/UIHelpers.ps1 \
-              ./scripts/modules/UI.ps1 \
-              ./scripts/Prepare_Ewon_SD.ps1 \
-          > ./PrepareEwonSD_latest.ps1
+          # Build a single .ps1 with UTF-8 BOM (required by PowerShell 5.1 for accented chars)
+          # 1. Write UTF-8 BOM
+          printf '\xEF\xBB\xBF' > ./PrepareEwonSD_latest.ps1
+
+          # 2. Concatenate modules in dependency order, stripping any embedded BOMs
+          for f in \
+            ./scripts/modules/AppState.ps1 \
+            ./scripts/modules/Localization.ps1 \
+            ./scripts/modules/Validation.ps1 \
+            ./scripts/modules/Config.ps1 \
+            ./scripts/modules/Network.ps1 \
+            ./scripts/modules/Firmware.ps1 \
+            ./scripts/modules/Generator.ps1 \
+            ./scripts/modules/UIHelpers.ps1 \
+            ./scripts/modules/UI.ps1 \
+            ./scripts/Prepare_Ewon_SD.ps1; do
+            LC_ALL=C sed '1s/^\xEF\xBB\xBF//' "$f" >> ./PrepareEwonSD_latest.ps1
+          done
 
       - name: Load release body template
         id: release_body
