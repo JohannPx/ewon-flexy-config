@@ -13,7 +13,7 @@ try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
 # STA check (WPF requires STA thread)
 if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
-    Start-Process powershell.exe -ArgumentList "-Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -NoNewWindow -Wait
+    Start-Process powershell.exe -ArgumentList "-Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -WindowStyle Hidden -Wait
     exit
 }
 
@@ -27,7 +27,7 @@ Write-Host ""
 Start-Sleep -Seconds 2
 
 # Hide the console window (only the WPF GUI will be visible)
-Add-Type -Name Win32 -Namespace Native -MemberDefinition @'
+Add-Type -Name Win32 -Namespace Native -ErrorAction SilentlyContinue -MemberDefinition @'
     [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
     [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 '@
