@@ -101,6 +101,8 @@ $Script:Strings = @{
         ValInvalidPIN     = "Code PIN invalide. 4 chiffres requis."
         ValInteger        = "Entier requis."
         ValMaxLength      = "24 caractères maximum."
+        ValConfirmLabel   = "Confirmer"
+        ValPasswordMismatch = "Les mots de passe ne correspondent pas."
 
         # --- Dialogs ---
         DlgGenInProgress  = "Une génération est en cours. Voulez-vous vraiment quitter ?"
@@ -355,6 +357,8 @@ $Script:Strings = @{
         ValInvalidPIN     = "Invalid PIN code. 4 digits required."
         ValInteger        = "Integer required."
         ValMaxLength      = "24 characters maximum."
+        ValConfirmLabel   = "Confirm"
+        ValPasswordMismatch = "Passwords do not match."
 
         # --- Dialogs ---
         DlgGenInProgress  = "A generation is in progress. Do you really want to quit?"
@@ -609,6 +613,8 @@ $Script:Strings = @{
         ValInvalidPIN     = "Código PIN inválido. Se requieren 4 dígitos."
         ValInteger        = "Se requiere un entero."
         ValMaxLength      = "Máximo 24 caracteres."
+        ValConfirmLabel   = "Confirmar"
+        ValPasswordMismatch = "Las contraseñas no coinciden."
 
         # --- Dialogs ---
         DlgGenInProgress  = "Hay una generación en curso. ¿Realmente desea salir?"
@@ -863,6 +869,8 @@ $Script:Strings = @{
         ValInvalidPIN     = "Codice PIN non valido. 4 cifre richieste."
         ValInteger        = "Numero intero richiesto."
         ValMaxLength      = "Massimo 24 caratteri."
+        ValConfirmLabel   = "Confermare"
+        ValPasswordMismatch = "Le password non corrispondono."
 
         # --- Dialogs ---
         DlgGenInProgress  = "Una generazione è in corso. Si desidera veramente uscire?"

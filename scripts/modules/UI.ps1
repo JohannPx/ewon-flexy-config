@@ -715,6 +715,17 @@ function Validate-DynamicFields {
                 "$desc : $($result.Message)", (T "DlgValidation"), "OK", "Warning")
             return $false
         }
+
+        # Check password confirmation match
+        if ($paramDef.Type -eq "Password" -and $field.ConfirmControl) {
+            $confirmValue = $field.ConfirmControl.Password
+            if ($value -ne $confirmValue) {
+                $desc = T $paramDef.Description
+                $null = [System.Windows.MessageBox]::Show(
+                    "$desc : $((T 'ValPasswordMismatch'))", (T "DlgValidation"), "OK", "Warning")
+                return $false
+            }
+        }
     }
     return $true
 }
@@ -1159,29 +1170,99 @@ function Wire-FieldValidation {
 
             if ([string]::IsNullOrWhiteSpace($val)) {
                 Clear-ValidationIcon -Icon $f.ValidationIcon
+                if ($f.ConfirmValIcon) { Clear-ValidationIcon -Icon $f.ConfirmValIcon }
             } else {
-                Update-ValidationIcon -Icon $f.ValidationIcon -IsValid $true -Message ""
+                $result = Test-ParameterValue -Type "Password" -Value $val -ParamName $pName
+                Update-ValidationIcon -Icon $f.ValidationIcon -IsValid $result.IsValid -Message $result.Message
+                if ($f.ConfirmControl -and $f.ConfirmValIcon) {
+                    $confirmPw = $f.ConfirmControl.Password
+                    if (-not [string]::IsNullOrWhiteSpace($confirmPw)) {
+                        if ($val -ne $confirmPw) {
+                            Update-ValidationIcon -Icon $f.ConfirmValIcon -IsValid $false -Message (T "ValPasswordMismatch")
+                        } else {
+                            Update-ValidationIcon -Icon $f.ConfirmValIcon -IsValid $true
+                        }
+                    }
+                }
             }
         })
+
+        # Wire the confirmation PasswordBox if present
+        if ($Field.ConfirmControl) {
+            $Field.ConfirmControl.Add_PasswordChanged({
+                param($sender, $e)
+                $confirmTag = $sender.Tag
+                $pName = $confirmTag -replace '_confirm$', ''
+                $f = $null
+                if ($Script:NetworkFieldMap -and $Script:NetworkFieldMap.ContainsKey($pName)) {
+                    $f = $Script:NetworkFieldMap[$pName]
+                } elseif ($Script:CommonFieldMap -and $Script:CommonFieldMap.ContainsKey($pName)) {
+                    $f = $Script:CommonFieldMap[$pName]
+                }
+                if (-not $f -or -not $f.ConfirmValIcon) { return }
+
+                $mainPw = $f.InputControl.Password
+                $confirmPw = $sender.Password
+                if ([string]::IsNullOrWhiteSpace($confirmPw)) {
+                    Clear-ValidationIcon -Icon $f.ConfirmValIcon
+                } elseif ($mainPw -ne $confirmPw) {
+                    Update-ValidationIcon -Icon $f.ConfirmValIcon -IsValid $false -Message (T "ValPasswordMismatch")
+                } else {
+                    Update-ValidationIcon -Icon $f.ConfirmValIcon -IsValid $true
+                }
+            })
+        }
     }
     elseif ($control -is [System.Windows.Controls.ComboBox]) {
-        $control.Add_SelectionChanged({
-            param($sender, $e)
-            $pName = $sender.Tag
-            if (-not $pName) { return }
-            $selectedItem = $sender.SelectedItem
-            if ($selectedItem -and $selectedItem.Tag) {
-                $val = $selectedItem.Tag
+        if ($control.IsEditable) {
+            # Editable ComboBox (Timezone) — track text changes
+            $control.Add_SelectionChanged({
+                param($sender, $e)
+                $pName = $sender.Tag
+                if (-not $pName) { return }
+                $val = $sender.Text
+                if (-not [string]::IsNullOrWhiteSpace($val)) {
+                    Set-CollectedParam -Name $pName -Value $val
+                }
+            })
+            # Also validate when user types/leaves field
+            $control.Add_LostFocus({
+                param($sender, $e)
+                $pName = $sender.Tag
+                if (-not $pName) { return }
+                $val = $sender.Text
                 Set-CollectedParam -Name $pName -Value $val
-                # Re-evaluate conditional visibility for both field maps
-                if ($Script:NetworkFieldMap) {
-                    Update-FieldVisibility -FieldMap $Script:NetworkFieldMap
+                $f = $null
+                if ($Script:CommonFieldMap -and $Script:CommonFieldMap.ContainsKey($pName)) {
+                    $f = $Script:CommonFieldMap[$pName]
                 }
-                if ($Script:CommonFieldMap) {
-                    Update-FieldVisibility -FieldMap $Script:CommonFieldMap
+                if ($f) {
+                    if ([string]::IsNullOrWhiteSpace($val)) {
+                        Clear-ValidationIcon -Icon $f.ValidationIcon
+                    } else {
+                        Update-ValidationIcon -Icon $f.ValidationIcon -IsValid $true
+                    }
                 }
-            }
-        })
+            })
+        } else {
+            $control.Add_SelectionChanged({
+                param($sender, $e)
+                $pName = $sender.Tag
+                if (-not $pName) { return }
+                $selectedItem = $sender.SelectedItem
+                if ($selectedItem -and $selectedItem.Tag) {
+                    $val = $selectedItem.Tag
+                    Set-CollectedParam -Name $pName -Value $val
+                    # Re-evaluate conditional visibility for both field maps
+                    if ($Script:NetworkFieldMap) {
+                        Update-FieldVisibility -FieldMap $Script:NetworkFieldMap
+                    }
+                    if ($Script:CommonFieldMap) {
+                        Update-FieldVisibility -FieldMap $Script:CommonFieldMap
+                    }
+                }
+            })
+        }
     }
 }
 
@@ -1233,6 +1314,9 @@ function Update-GroupHeaderVisibility {
 # ============ STEP 4: TALK2M ============
 
 function Register-Step4Events {
+    Add-SelectAllOnFocus -Control $Script:ui_tbT2MKey
+    Add-SelectAllOnFocus -Control $Script:ui_tbT2MNote
+
     $Script:ui_tbT2MKey.Add_PasswordChanged({
         $val = $Script:ui_tbT2MKey.Password
         if ([string]::IsNullOrWhiteSpace($val)) {
