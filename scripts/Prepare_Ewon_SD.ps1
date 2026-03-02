@@ -3,38 +3,32 @@
 # Author: JPR
 # Date: 2025-09-22
 
-# =================== GENERAL SETTINGS ===================
-Set-StrictMode -Version Latest
-$ErrorActionPreference = 'Stop'
-
-# Console UTF-8
-try { chcp 65001 > $null } catch {}
-try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
-
-# STA check (WPF requires STA thread)
+# =================== STA CHECK (must be first) ===================
+# WPF requires STA thread. If MTA, silently restart in STA and exit immediately.
 if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
     Start-Process powershell.exe -ArgumentList "-Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$PSCommandPath`"" -WindowStyle Hidden -Wait
     exit
 }
 
-# Show startup message before hiding console
-Write-Host ""
-Write-Host "  Ewon Flexy SD Card Preparation Tool" -ForegroundColor Cyan
-Write-Host "  Loading GUI, please wait..." -ForegroundColor Gray
-Write-Host ""
+# =================== GENERAL SETTINGS ===================
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
 
-# Brief pause so the user can read the startup message
-Start-Sleep -Seconds 2
+# Console UTF-8
+try { chcp 65001 | Out-Null } catch {}
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 
-# Hide the console window (only the WPF GUI will be visible)
-Add-Type -Name Win32 -Namespace Native -ErrorAction SilentlyContinue -MemberDefinition @'
-    [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
-    [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+# Hide the console window immediately (only the WPF GUI will be visible)
+try {
+    Add-Type -Name Win32 -Namespace Native -MemberDefinition @'
+        [DllImport("kernel32.dll")] public static extern IntPtr GetConsoleWindow();
+        [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 '@
-$consoleHwnd = [Native.Win32]::GetConsoleWindow()
-if ($consoleHwnd -ne [IntPtr]::Zero) {
-    [Native.Win32]::ShowWindow($consoleHwnd, 0) | Out-Null  # 0 = SW_HIDE
-}
+    $consoleHwnd = [Native.Win32]::GetConsoleWindow()
+    if ($consoleHwnd -ne [IntPtr]::Zero) {
+        [Native.Win32]::ShowWindow($consoleHwnd, 0) | Out-Null  # 0 = SW_HIDE
+    }
+} catch {}
 
 # =================== MODULE LOADING ===================
 # In development mode, modules are in a subfolder.
