@@ -179,7 +179,7 @@ function New-ParamFieldRow {
             $pwBox.Tag = $ParamDef.Param
             $pwBox.Height = 28
             $pwBox.FontSize = 12
-            $pwBox.MaxLength = 24
+            if ($ParamDef.Param -eq "Password") { $pwBox.MaxLength = 24 }
             if ($ParamDef.Default) {
                 $pwBox.Password = $ParamDef.Default
             }
