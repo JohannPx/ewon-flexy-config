@@ -16,47 +16,35 @@ Cette release contient la dernière version du script de préparation de cartes 
 
 ---
 
-## 📥 Téléchargement
+## 📥 Téléchargement et installation
 
-> **Fichier unique auto-contenu** : les 9 modules sont intégrés dans le script lors du build. Aucune dépendance externe, PowerShell 5.1 natif Windows suffit.
+### 🔽 Option recommandée : Exécutable (.exe)
 
-### 🔽 Où trouver le fichier ?
+1. **Télécharger** le fichier **`EwonFlexySdPrep.exe`** depuis les **Assets** ci-dessous
+2. **Double-cliquer** pour lancer
 
-Le fichier **`PrepareEwonSD_latest.ps1`** se trouve dans la section **Assets** tout en bas de cette page (cliquez sur **▶ Assets** pour déplier si nécessaire).
+Au premier lancement :
+- L'application s'installe automatiquement dans votre profil utilisateur (aucun droit administrateur requis)
+- Un raccourci est créé sur le **Bureau** et dans le **Menu Démarrer**
+- Les lancements suivants se font via le raccourci
 
-### 🚀 Lancement
+**Mises à jour automatiques** : à chaque démarrage, l'application vérifie si une nouvelle version est disponible sur GitHub et se met à jour silencieusement.
+
+> ⚠️ **Windows SmartScreen** : au premier lancement, Windows peut afficher "Windows a protégé votre ordinateur". Cliquez sur **Plus d'infos** → **Exécuter quand même**. C'est normal pour un exécutable non signé.
+
+### 🔽 Option avancée : Script PowerShell (.ps1)
+
+Pour les utilisateurs avancés ou les environnements qui bloquent les exécutables non signés :
 
 1. **Télécharger** le fichier `PrepareEwonSD_latest.ps1` depuis les **Assets** ci-dessous
-2. **Ouvrir PowerShell** : clic-droit sur le menu Démarrer → **Terminal** (ou **Windows PowerShell** sur les versions plus anciennes)
-3. **Lancer** le script avec cette commande :
+2. **Ouvrir PowerShell** : clic-droit sur le menu Démarrer → **Terminal**
+3. **Lancer** :
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\PrepareEwonSD_latest.ps1"
 ```
 
-> 💡 `$HOME\Downloads` correspond au dossier Téléchargements de l'utilisateur courant. Si vous avez déplacé le fichier ailleurs, adaptez le chemin. Exemple depuis le Bureau :
-> ```powershell
-> powershell -ExecutionPolicy Bypass -File "$HOME\Desktop\PrepareEwonSD_latest.ps1"
-> ```
-
-4. **Suivre** le wizard graphique (8 étapes)
-
-L'option `-ExecutionPolicy Bypass` contourne temporairement la politique de sécurité Windows pour cette exécution uniquement — elle ne modifie aucun paramètre système.
-
-### 🔒 Avertissement de sécurité Windows
-
-Au premier lancement, Windows peut afficher un **"Avertissement de sécurité"** car le script provient d'Internet :
-
-```
-Avertissement de sécurité
-N'exécutez que des scripts que vous approuvez. [...]
-Voulez-vous exécuter C:\...\PrepareEwonSD_latest.ps1 ?
-[N] Ne pas exécuter  [O] Exécuter une fois  [S] Suspendre  [?] Aide
-```
-
-**➜ Tapez `O` puis Entrée** pour exécuter le script. C'est un comportement normal de Windows pour tout script téléchargé depuis Internet.
-
-> 💡 **Astuce** : Pour ne plus voir cet avertissement, faites clic-droit sur le fichier → **Propriétés** → cochez **Débloquer** en bas de la fenêtre → **OK**.
+> 💡 Adaptez le chemin si vous avez déplacé le fichier.
 
 ---
 
@@ -64,37 +52,25 @@ Voulez-vous exécuter C:\...\PrepareEwonSD_latest.ps1 ?
 
 ### 🌍 Multilingue (FR/EN/ES/IT)
 - ✅ Sélection de la langue via drapeaux sur la première page
-- ✅ Changement instantané de toute l'interface (labels, messages, procédures)
-- ✅ Fallback automatique vers le français
+- ✅ Changement instantané de toute l'interface
 
 ### 🖥️ Interface graphique WPF
 - ✅ Wizard 8 étapes avec navigation Précédent/Suivant
-- ✅ Icône SD personnalisée (barre de titre + barre des tâches)
-- ✅ Validation temps réel avec indicateurs visuels (✔/✘)
-- ✅ Champs IP WAN obligatoires en mode statique Ethernet
-- ✅ Champs conditionnels dynamiques (DHCP masque les champs IP, proxy conditionnel...)
-- ✅ Barre de progression et log de génération en temps réel
+- ✅ Validation temps réel avec indicateurs visuels
+- ✅ Champs conditionnels dynamiques
 
 ### 📦 Cache intelligent
 - ✅ Téléchargement automatique de tous les firmwares en arrière-plan
 - ✅ Interface réactive pendant le cache (runspace asynchrone)
-- ✅ Progression affichée dans la bannière de statut
 
 ### 🔄 Génération dynamique
 - ✅ Configuration créée à la volée selon vos paramètres
-- ✅ Suppression automatique des paramètres inutilisés (4G vs Ethernet vs Datalogger)
 - ✅ Génération tar robuste avec fallback POSIX intégré
-- ✅ Procédure détaillée générée automatiquement
 
 ### 💾 Modes disponibles
 - **ONLINE** : Téléchargement à la demande
 - **CACHE** : Utilisation hors-ligne
 - **PREPARATION** : Téléchargement complet pour usage futur
-
-### 🔐 Sécurité
-- Aucune donnée sensible stockée
-- Saisie masquée des mots de passe (PasswordBox WPF)
-- Clés Talk2M demandées à chaque utilisation
 
 ---
 
@@ -109,49 +85,12 @@ Voulez-vous exécuter C:\...\PrepareEwonSD_latest.ps1 ?
 
 ---
 
-## 🔧 Paramètres collectés
-
-### Communs (toujours demandés)
-- IP LAN et masque de sous-réseau
-- Identification de l'Ewon
-- Serveur NTP et timezone
-- Mot de passe administrateur
-- Compte et autorisation MyPortal3E
-
-### Spécifiques Ethernet
-- Mode DHCP ou IP statique
-- Configuration WAN (si IP statique)
-- Serveurs DNS
-- Proxy HTTP (optionnel : sans auth, basic auth, NTLM)
-
-### Spécifiques 4G
-- Code PIN de la carte SIM
-- APN et identifiants
-
-### Spécifiques Datalogger (LAN uniquement)
-- Passerelle LAN (EthGW)
-- Serveurs DNS (EthDns1, EthDns2)
-- NTP : fr.pool.ntp.org (pas de Talk2M)
-
----
-
 ## 🐛 Support
 
 En cas de problème :
 1. Vérifiez que vous utilisez la dernière version
 2. Consultez la [documentation](../../README.md)
 3. Ouvrez une [issue](../../issues) avec une capture d'écran de l'erreur
-
----
-
-## 📄 Checksums
-
-Les checksums SHA256 sont disponibles dans le fichier `SHA256SUMS.txt` joint à cette release.
-
-Pour vérifier l'intégrité sous Windows PowerShell :
-```powershell
-Get-FileHash PrepareEwonSD_latest.ps1 -Algorithm SHA256
-```
 
 ---
 

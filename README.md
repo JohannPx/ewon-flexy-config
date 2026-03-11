@@ -8,16 +8,16 @@
 
 ---
 
-## ✨ Nouveautés v5.1
+## ✨ Nouveautés v5.2
 
+- 📦 **Exécutable Windows** : Distribution en `.exe` auto-installable (sans droits admin) avec mises à jour automatiques depuis GitHub
+- 🔄 **Auto-update silencieux** : Vérification et mise à jour automatique à chaque démarrage
+- 🏷️ **Releases versionnées** : Tags semver (`v5.2.0`), pre-releases sur branche `dev` pour tests avant production
 - 🌍 **Multilingue** : Interface disponible en français, anglais, espagnol et italien (sélection par drapeaux)
 - 🖥️ **Interface graphique WPF** : Wizard 8 étapes avec icône SD personnalisée (titre + barre des tâches)
 - 🧩 **Architecture modulaire** : Code restructuré en 9 modules spécialisés (+ Localization.ps1)
 - ✅ **Validation temps réel** : Icônes de validation à côté de chaque champ, champs obligatoires en IP statique WAN
 - 🔄 **Champs conditionnels** : Affichage/masquage dynamique selon les choix (DHCP/statique, proxy, etc.)
-- 📊 **Barre de progression** : Suivi visuel de la génération avec log en temps réel
-- 🎯 **Génération dynamique** : Les configurations sont créées à la volée selon vos paramètres
-- 🧹 **Configuration optimisée** : Suppression automatique des paramètres inutilisés
 - 📦 **Cache intelligent** : Téléchargement automatique de tous les firmwares en arrière-plan (sans bloquer l'interface)
 - 📄 **Archive tar robuste** : Génération fiable du backup.tar avec fallback POSIX intégré
 
@@ -35,24 +35,28 @@ Automatiser la préparation des cartes SD pour configurer les passerelles **Ewon
 
 ## 🚀 Guide de démarrage rapide
 
-### 1️⃣ Téléchargement
+### 1️⃣ Téléchargement et installation
 
-Rendez-vous dans **[Releases](../../releases/latest)** et téléchargez :
-```
-PrepareEwonSD_latest.ps1
-```
-
-> **Note** : Le fichier téléchargé est un script unique auto-contenu. Les modules sont intégrés dans le fichier lors du build CI/CD.
+Rendez-vous dans **[Releases](../../releases/latest)** et téléchargez **`EwonFlexySdPrep.exe`**.
 
 ### 2️⃣ Exécution
 
-**Option A : Interface graphique**
-- Clic-droit sur le fichier → **Exécuter avec PowerShell**
+**Double-cliquez** sur l'exécutable. Au premier lancement :
+- L'application s'installe automatiquement dans votre profil utilisateur (aucun droit admin requis)
+- Un raccourci est créé sur le **Bureau** et dans le **Menu Démarrer**
+- Les mises à jour sont vérifiées et appliquées silencieusement à chaque démarrage
 
-**Option B : Ligne de commande**
+> ⚠️ **Windows SmartScreen** : au premier lancement, Windows peut afficher "Windows a protégé votre ordinateur". Cliquez sur **Plus d'infos** → **Exécuter quand même**.
+
+<details>
+<summary>🔽 Option avancée : Script PowerShell (.ps1)</summary>
+
+Pour les environnements qui bloquent les exécutables non signés, téléchargez `PrepareEwonSD_latest.ps1` et lancez :
+
 ```powershell
-powershell -ExecutionPolicy Bypass -File PrepareEwonSD_latest.ps1
+powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\PrepareEwonSD_latest.ps1"
 ```
+</details>
 
 ### 3️⃣ Suivre le wizard
 
@@ -155,7 +159,8 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 ```
 ewon-flexy-config/
 ├── 📜 scripts/
-│   ├── Prepare_Ewon_SD.ps1         # Point d'entrée (~70 lignes)
+│   ├── Prepare_Ewon_SD.ps1         # Point d'entrée PowerShell
+│   ├── GenerateIcon.ps1            # Génération icône .ico (utilisé par le CI)
 │   └── modules/
 │       ├── AppState.ps1             # État central (hashtable partagée)
 │       ├── Localization.ps1         # i18n FR/EN/ES/IT (~160 clés × 4 langues)
@@ -166,24 +171,33 @@ ewon-flexy-config/
 │       ├── Generator.ps1            # Templates, tar, T2M, procédure
 │       ├── UIHelpers.ps1            # Création dynamique de champs WPF
 │       └── UI.ps1                   # XAML wizard, événements, drapeaux
+├── 🔧 wrapper/                      # Wrapper C# .NET 8
+│   ├── EwonFlexySdPrep.csproj      # Projet (self-contained, single-file)
+│   └── Program.cs                   # Auto-install, auto-update, lance le .ps1
 ├── 📝 templates/                    # Templates de configuration
 │   ├── program.bas                  # Script BASIC Ewon
 │   ├── comcfg.txt                   # Configuration communication
 │   └── config.txt                   # Configuration système
-├── 📋 manifest.json                 # Métadonnées et versions
+├── 📋 manifest.json                 # Métadonnées et versions (source de vérité)
+├── 📋 CLAUDE.md                     # Configuration Claude Code
 └── 📚 .github/
     ├── workflows/
-    │   └── build-release.yml        # CI/CD (concaténation + release)
-    └── release-body.md              # Notes de version
+    │   └── build-release.yml        # CI/CD (3 jobs : build → package → release)
+    └── release-body.md              # Template notes de version
 ```
 
 ### 🔨 Build CI/CD
 
-Lors d'un push sur `main`, le workflow GitHub Actions :
-1. Concatène les 9 modules dans l'ordre de dépendance
-2. Ajoute le launcher en fin de fichier
-3. Produit un fichier unique `PrepareEwonSD_latest.ps1`
-4. Publie une release GitHub avec ce fichier en téléchargement
+Le workflow GitHub Actions s'exécute sur push vers `main` ou `dev` en 3 jobs :
+
+1. **Build** (Ubuntu) : Concatène les 9 modules PowerShell en un fichier unique `PrepareEwonSD_latest.ps1` avec BOM UTF-8
+2. **Package** (Windows) : Génère l'icône, compile le wrapper C# via `dotnet publish` → `EwonFlexySdPrep.exe` (self-contained, single-file, trimmed)
+3. **Release** : Publie une release GitHub avec les 2 assets (.exe + .ps1)
+
+| Branche | Type de release | Tag | Auto-update |
+|---------|----------------|-----|-------------|
+| `main` | Stable | `v5.2.0` | Oui (utilisateurs en production) |
+| `dev` | Pre-release | `v5.2.0-dev.42` | Non (ignoré par `/releases/latest`) |
 
 En développement local, le launcher détecte le dossier `modules/` et charge les fichiers individuellement via dot-sourcing.
 
@@ -266,6 +280,7 @@ Utilisez l'onglet [Issues](../../issues) avec les informations suivantes :
 
 | Version | Date | Changements |
 |---------|------|-------------|
+| **v5.2.0** | 2026-03 | Exe Windows auto-installable, auto-update GitHub, wrapper C# .NET 8, CI versionnée, pre-releases dev |
 | **v5.1.0** | 2026-02 | Multilingue FR/EN/ES/IT, cache async firmware, icône app, validation obligatoire IP WAN, tar robuste |
 | **v5.0.0** | 2026-02 | Interface WPF wizard, architecture modulaire 8 modules, validation temps réel |
 | **v2.0.0** | 2025-01 | Génération dynamique, suppression lignes inutilisées |

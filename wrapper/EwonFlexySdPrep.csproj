@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>true</SelfContained>
+    <PublishTrimmed>true</PublishTrimmed>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <ApplicationIcon>icon.ico</ApplicationIcon>
+    <AssemblyName>EwonFlexySdPrep</AssemblyName>
+    <RootNamespace>EwonFlexySdPrep</RootNamespace>
+    <Company>Clauger</Company>
+    <Product>Ewon Flexy SD Preparator</Product>
+    <Copyright>(c) 2026 Clauger</Copyright>
+    <Description>Ewon Flexy SD card preparation tool with auto-update</Description>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="PrepareEwonSD_latest.ps1" />
+  </ItemGroup>
+</Project>
