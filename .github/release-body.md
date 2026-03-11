@@ -30,7 +30,16 @@ Au premier lancement :
 
 **Mises à jour automatiques** : à chaque démarrage, l'application vérifie si une nouvelle version est disponible sur GitHub et se met à jour silencieusement.
 
-> ⚠️ **Windows SmartScreen** : au premier lancement, Windows peut afficher "Windows a protégé votre ordinateur". Cliquez sur **Plus d'infos** → **Exécuter quand même**. C'est normal pour un exécutable non signé.
+> **Avertissements de sécurité au premier téléchargement/lancement :**
+>
+> 1. **Navigateur** (Chrome/Edge) : *"EwonFlexySdPrep.exe n'est pas fréquemment téléchargé"*
+>    - Chrome : cliquez sur **`^`** (flèche) → **Conserver**
+>    - Edge : cliquez sur **`...`** → **Conserver** → **Conserver quand même**
+>
+> 2. **Windows SmartScreen** : *"Windows a protégé votre ordinateur"*
+>    - Cliquez sur **Plus d'infos** → **Exécuter quand même**
+>
+> Ces avertissements sont normaux pour un exécutable non signé et n'apparaissent qu'au premier téléchargement.
 
 ### 🔽 Option avancée : Script PowerShell (.ps1)
 
