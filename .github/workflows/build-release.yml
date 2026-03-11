@@ -36,7 +36,6 @@ jobs:
             ./scripts/modules/Validation.ps1 \
             ./scripts/modules/Config.ps1 \
             ./scripts/modules/Network.ps1 \
-            ./scripts/modules/Updater.ps1 \
             ./scripts/modules/Firmware.ps1 \
             ./scripts/modules/Generator.ps1 \
             ./scripts/modules/UIHelpers.ps1 \
@@ -51,7 +50,7 @@ jobs:
           name: ps1-script
           path: ./PrepareEwonSD_latest.ps1
 
-  # ─── Job 2: Compile .exe with ps2exe (Windows) ───
+  # ─── Job 2: Compile C# wrapper → .exe (Windows) ───
   package:
     needs: build
     runs-on: windows-latest
@@ -63,36 +62,36 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ps1-script
+          path: ./wrapper
 
       - name: Generate icon
         shell: pwsh
         run: |
-          & ./scripts/GenerateIcon.ps1 -OutputPath ./icon.ico
+          & ./scripts/GenerateIcon.ps1 -OutputPath ./wrapper/icon.ico
 
-      - name: Install ps2exe
-        shell: pwsh
-        run: |
-          Install-Module -Name ps2exe -Force -Scope CurrentUser
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
 
-      - name: Compile to EXE
+      - name: Set version in .csproj
         shell: pwsh
         run: |
           $version = "${{ needs.build.outputs.version }}"
-          Invoke-PS2EXE -InputFile ./PrepareEwonSD_latest.ps1 `
-            -OutputFile ./EwonFlexySdPrep.exe `
-            -NoConsole `
-            -Title "Ewon Flexy SD Preparator" `
-            -Company "Clauger" `
-            -Product "Ewon Flexy SD Preparator" `
-            -Version $version `
-            -Copyright "(c) 2026 Clauger" `
-            -IconFile ./icon.ico
+          $csproj = Get-Content ./wrapper/EwonFlexySdPrep.csproj -Raw
+          $csproj = $csproj -replace '(<\/PropertyGroup>)', "    <Version>$version</Version>`n  `$1"
+          Set-Content ./wrapper/EwonFlexySdPrep.csproj $csproj
+          Write-Host "Version set to $version"
+
+      - name: Publish .exe
+        run: |
+          dotnet publish ./wrapper/EwonFlexySdPrep.csproj -c Release -o ./publish
 
       - name: Upload .exe artifact
         uses: actions/upload-artifact@v4
         with:
           name: exe-app
-          path: ./EwonFlexySdPrep.exe
+          path: ./publish/EwonFlexySdPrep.exe
 
   # ─── Job 3: Create GitHub Release ───
   release:

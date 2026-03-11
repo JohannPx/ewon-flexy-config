@@ -1,0 +1,5 @@
+bin/
+obj/
+publish/
+icon.ico
+PrepareEwonSD_latest.ps1
