@@ -46,7 +46,16 @@ Rendez-vous dans **[Releases](../../releases/latest)** et téléchargez **`EwonF
 - Un raccourci est créé sur le **Bureau** et dans le **Menu Démarrer**
 - Les mises à jour sont vérifiées et appliquées silencieusement à chaque démarrage
 
-> ⚠️ **Windows SmartScreen** : au premier lancement, Windows peut afficher "Windows a protégé votre ordinateur". Cliquez sur **Plus d'infos** → **Exécuter quand même**.
+> **Avertissements de sécurité au premier téléchargement/lancement :**
+>
+> 1. **Navigateur** (Chrome/Edge) : *"EwonFlexySdPrep.exe n'est pas fréquemment téléchargé"*
+>    - Chrome : cliquez sur **`^`** (flèche) → **Conserver**
+>    - Edge : cliquez sur **`...`** → **Conserver** → **Conserver quand même**
+>
+> 2. **Windows SmartScreen** : *"Windows a protégé votre ordinateur"*
+>    - Cliquez sur **Plus d'infos** → **Exécuter quand même**
+>
+> Ces avertissements sont normaux pour un exécutable non signé et n'apparaissent qu'au premier téléchargement.
 
 <details>
 <summary>🔽 Option avancée : Script PowerShell (.ps1)</summary>
