@@ -10,6 +10,13 @@ if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
     exit
 }
 
+# =================== AUTO-INSTALL & UPDATE ===================
+# When running as compiled .exe: install to AppData on first launch, then check for updates
+# In release mode (concatenated), Updater functions are defined above this point.
+# In dev mode (modules in subfolder), these functions don't exist yet — skip safely.
+if (Get-Command Install-AppIfNeeded -ErrorAction SilentlyContinue) { Install-AppIfNeeded }
+if (Get-Command Update-AppSilently -ErrorAction SilentlyContinue) { Update-AppSilently }
+
 # =================== GENERAL SETTINGS ===================
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -43,6 +50,7 @@ if (Test-Path $modulesDir) {
         "Validation.ps1"
         "Config.ps1"
         "Network.ps1"
+        "Updater.ps1"
         "Firmware.ps1"
         "Generator.ps1"
         "UIHelpers.ps1"
