@@ -1,39 +1,10 @@
 {
   "version": "5.0.0",
-  "lastUpdate": "2025-01-22",
-  "description": "Ewon Flexy SD Preparator - Dynamic Configuration Generator",
   "firmwares": [
     {
       "version": "15.0s2",
       "hasEbu": true,
       "description": "Pivot firmware for 14.x to 15.x migration"
     }
-  ],
-  "templates": {
-    "program": "templates/program.bas",
-    "comcfg": "templates/comcfg.txt",
-    "config": "templates/config.txt"
-  },
-  "parameters": {
-    "description": "Dynamic parameters collected from user based on connection type",
-    "common": [
-      "EthIP", "EthMask", "Identification", "NtpServerAddr", 
-      "NtpServerPort", "Timezone", "Password", "AccountName", "AccountAuthorization"
-    ],
-    "ethernet_specific": [
-      "UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2",
-      "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass"
-    ],
-    "4g_specific": [
-      "PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1"
-    ],
-    "datalogger_specific": [
-      "EthGW", "EthDns1", "EthDns2"
-    ]
-  },
-  "changelog": {
-    "2.0.0": "Dynamic backup.tar generation from templates",
-    "1.1.0": "Added firmware caching and offline mode",
-    "1.0.0": "Initial release with basic SD preparation"
-  }
+  ]
 }

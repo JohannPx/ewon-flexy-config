@@ -10,18 +10,63 @@ jobs:
   # ─── Job 1: Build concatenated .ps1 ───
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
-      - name: Extract version from manifest.json
+      - name: Resolve version
         id: version
         run: |
-          VERSION=$(jq -r '.version' manifest.json)
+          BASE_VERSION=$(jq -r '.version' manifest.json)
+          echo "Base version from manifest: $BASE_VERSION"
+
+          if [ "${{ github.ref_name }}" = "main" ]; then
+            # Check if tag already exists
+            if git tag -l "v${BASE_VERSION}" | grep -q .; then
+              echo "Tag v${BASE_VERSION} already exists, auto-bumping patch..."
+              LATEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v '-' | head -1)
+              if [ -n "$LATEST_TAG" ]; then
+                LATEST=${LATEST_TAG#v}
+                MAJOR=$(echo "$LATEST" | cut -d. -f1)
+                MINOR=$(echo "$LATEST" | cut -d. -f2)
+                PATCH=$(echo "$LATEST" | cut -d. -f3)
+                PATCH=$((PATCH + 1))
+                VERSION="${MAJOR}.${MINOR}.${PATCH}"
+              else
+                VERSION="$BASE_VERSION"
+              fi
+            else
+              VERSION="$BASE_VERSION"
+            fi
+          else
+            VERSION="$BASE_VERSION"
+          fi
+
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Version: $VERSION"
+          echo "Resolved version: $VERSION"
+
+      - name: Update manifest.json if version bumped
+        if: github.ref_name == 'main'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          CURRENT=$(jq -r '.version' manifest.json)
+          if [ "$VERSION" != "$CURRENT" ]; then
+            jq --arg v "$VERSION" '.version = $v' manifest.json > manifest.tmp && mv manifest.tmp manifest.json
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add manifest.json
+            git commit -m "ci: auto-bump version to $VERSION"
+            git push
+            echo "Manifest updated to $VERSION"
+          else
+            echo "No bump needed, version $VERSION is new"
+          fi
 
       - name: Build Script
         run: |
