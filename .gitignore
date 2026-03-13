@@ -1,5 +1,6 @@
 # Claude Code
-.claude/
+.claude/*
+!.claude/settings.json
 
 # Local settings
 settings/local.json

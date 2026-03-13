@@ -1,30 +1,9 @@
 # CLAUDE.md - Configuration Claude Code
 
-## Commandes autorisées
+## Permissions
 
-Les opérations suivantes sont pré-approuvées et ne nécessitent pas de confirmation :
-
-```
-# Git
-git status
-git diff
-git log
-git add
-git commit
-git push
-git branch
-git checkout
-git pull
-git fetch
-git stash
-
-# Build
-dotnet build
-dotnet publish
-dotnet restore
-powershell -Sta -Command
-powershell -Command
-```
+Les permissions sont configurées dans `.claude/settings.json` (partagé via git).
+Voir ce fichier pour la liste des commandes auto-approuvées (git, dotnet, powershell).
 
 ## Architecture du projet
 
