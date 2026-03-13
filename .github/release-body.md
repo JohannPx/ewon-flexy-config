@@ -98,8 +98,8 @@ powershell -ExecutionPolicy Bypass -File "$HOME\Downloads\PrepareEwonSD_latest.p
 
 En cas de problème :
 1. Vérifiez que vous utilisez la dernière version
-2. Consultez la [documentation](../../README.md)
-3. Ouvrez une [issue](../../issues) avec une capture d'écran de l'erreur
+2. Consultez la [documentation](https://github.com/JohannPx/ewon-flexy-config#readme)
+3. Ouvrez une [issue](https://github.com/JohannPx/ewon-flexy-config/issues) avec une capture d'écran de l'erreur
 
 ---
 
