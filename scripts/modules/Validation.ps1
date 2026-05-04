@@ -53,7 +53,7 @@ function Test-ParameterValue {
             }
         }
         "Password" {
-            if ($Value.Length -gt 24) {
+            if ($ParamName -ne "AccountAuthorization" -and $Value.Length -gt 24) {
                 return @{ IsValid = $false; Message = (T "ValMaxLength") }
             }
         }
