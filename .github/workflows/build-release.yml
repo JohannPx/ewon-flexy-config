@@ -161,20 +161,65 @@ jobs:
           echo "Release: $NAME (tag: $TAG)"
 
       - name: Generate release notes
+        env:
+          VERSION_TAG: ${{ steps.release_info.outputs.tag }}
+          SHA: ${{ github.sha }}
         run: |
-          BODY_TEMPLATE=$(cat .github/release-body.md)
+          # Need full history and tags to compute the changelog range
+          git fetch --tags --force
 
-          BODY="${BODY_TEMPLATE}"
-          BODY="${BODY//\{\{VERSION\}\}/${{ steps.release_info.outputs.tag }}}"
+          # Range = previous semver tag → HEAD (excluding the tag we're about to publish)
+          PREV_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname \
+                     | grep -v '-' | grep -v "^${VERSION_TAG}$" | head -1)
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+          echo "Changelog range: $RANGE"
+
+          FEATS=""; FIXES=""; DOCS=""; REFACTORS=""; CIS=""; TESTS=""; OTHERS=""
+
+          while IFS='|' read -r MSG HASH; do
+            [ -z "$MSG" ] && continue
+            # Skip auto-generated noise
+            case "$MSG" in
+              "Merge pull request"*|"Merge branch"*|"ci: auto-bump version"*) continue ;;
+            esac
+            ENTRY="- ${MSG} (${HASH})"
+            case "$MSG" in
+              feat:*|feat\(*) FEATS="${FEATS}${ENTRY}"$'\n' ;;
+              fix:*|fix\(*) FIXES="${FIXES}${ENTRY}"$'\n' ;;
+              docs:*|docs\(*) DOCS="${DOCS}${ENTRY}"$'\n' ;;
+              refactor:*|refactor\(*) REFACTORS="${REFACTORS}${ENTRY}"$'\n' ;;
+              ci:*|ci\(*) CIS="${CIS}${ENTRY}"$'\n' ;;
+              test:*|test\(*) TESTS="${TESTS}${ENTRY}"$'\n' ;;
+              *) OTHERS="${OTHERS}${ENTRY}"$'\n' ;;
+            esac
+          done < <(git log $RANGE --pretty=format:'%s|%h')
+
+          {
+            [ -n "$FEATS" ]     && { echo "**✨ Nouveautés**"; echo ""; printf '%s\n' "$FEATS"; }
+            [ -n "$FIXES" ]     && { echo "**🐛 Corrections**"; echo ""; printf '%s\n' "$FIXES"; }
+            [ -n "$REFACTORS" ] && { echo "**♻️ Refactor**"; echo ""; printf '%s\n' "$REFACTORS"; }
+            [ -n "$DOCS" ]      && { echo "**📚 Documentation**"; echo ""; printf '%s\n' "$DOCS"; }
+            [ -n "$CIS" ]       && { echo "**⚙️ CI / Build**"; echo ""; printf '%s\n' "$CIS"; }
+            [ -n "$TESTS" ]     && { echo "**🧪 Tests**"; echo ""; printf '%s\n' "$TESTS"; }
+            [ -n "$OTHERS" ]    && { echo "**🔧 Autres**"; echo ""; printf '%s\n' "$OTHERS"; }
+            [ -z "$FEATS$FIXES$REFACTORS$DOCS$CIS$TESTS$OTHERS" ] && echo "_Aucun changement notable._"
+          } > changelog.md
+
+          # Substitute placeholders in the template (bash handles multiline values fine)
+          CHANGELOG=$(cat changelog.md)
+          BODY=$(cat .github/release-body.md)
+          BODY="${BODY//\{\{VERSION\}\}/$VERSION_TAG}"
           BODY="${BODY//\{\{DATE\}\}/$(date +'%Y-%m-%d')}"
-          BODY="${BODY//\{\{COMMIT_SHA\}\}/${{ github.sha }}}"
-          BODY="${BODY//\{\{COMMIT_MSG\}\}/${{ github.event.head_commit.message }}}"
+          BODY="${BODY//\{\{COMMIT_SHA\}\}/$SHA}"
+          BODY="${BODY//\{\{CHANGELOG\}\}/$CHANGELOG}"
 
           echo "$BODY" > release_notes.md
-
-          echo "" >> release_notes.md
-          echo "## Commits inclus" >> release_notes.md
-          git log -10 --pretty=format:"- %s (%h)" >> release_notes.md
+          echo "----- Release notes -----"
+          cat release_notes.md
 
       - name: Publish Release
         uses: ncipollo/release-action@v1
