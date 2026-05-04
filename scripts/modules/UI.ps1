@@ -84,7 +84,8 @@ $Script:MainXaml = @'
           <Button x:Name="btnNext" Content="Suivant" Style="{StaticResource NavBtn}"
                   Background="#1A5276" Foreground="White"/>
         </StackPanel>
-        <Control/>
+        <TextBlock x:Name="txtVersion" VerticalAlignment="Center" HorizontalAlignment="Center"
+                   Foreground="#888" FontSize="11" Text="v..."/>
       </DockPanel>
     </Border>
 
@@ -427,7 +428,7 @@ function Initialize-MainWindow {
 
     # Bind all named elements to script variables
     $elementNames = @(
-        "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs",
+        "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs","txtVersion",
         "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT",
         "txtModeTitle","rbOnline","rbCache","rbPreparation","brdConnStatus","txtConnStatus",
         "txtFwTitle","txtFwHelp","txtFwCurrentLabel","txtFwTargetLabel","cbCurrentFw","cbTargetFw","chkSkipFirmware",
@@ -448,6 +449,9 @@ function Initialize-MainWindow {
             Set-Variable -Name "ui_$name" -Value $el -Scope Script
         }
     }
+
+    # Display app version
+    if ($Script:ui_txtVersion) { $Script:ui_txtVersion.Text = "v$(Get-AppVersion)" }
 
     # Initialize state
     Initialize-Network

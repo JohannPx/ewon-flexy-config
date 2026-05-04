@@ -54,3 +54,40 @@ function Set-CollectedParam {
 function Reset-CollectedParams {
     $Script:AppState.CollectedParams = @{}
 }
+
+# Version injected at build time by CI (sed replaces @APP_VERSION@ with the resolved version).
+# Stays as the literal placeholder in dev mode, which triggers manifest.json lookup.
+$Script:InjectedAppVersion = "@APP_VERSION@"
+
+function Get-AppVersion {
+    # Build-time injected version (production)
+    if ($Script:InjectedAppVersion -and $Script:InjectedAppVersion -notmatch '^@.*@$') {
+        return $Script:InjectedAppVersion
+    }
+
+    # Production fallback: version.json maintained by the C# wrapper after install/update
+    $versionFile = Join-Path $env:LOCALAPPDATA "EwonFlexySdPrep\version.json"
+    if (Test-Path $versionFile) {
+        try {
+            $v = (Get-Content $versionFile -Raw | ConvertFrom-Json).version
+            if ($v -and $v -ne "0.0.0") { return $v }
+        } catch {}
+    }
+
+    # Dev: read manifest.json at repo root (script lives in scripts/modules/)
+    $candidates = @(
+        (Join-Path $PSScriptRoot "..\..\manifest.json"),
+        (Join-Path $PSScriptRoot "..\manifest.json"),
+        (Join-Path $PSScriptRoot "manifest.json")
+    )
+    foreach ($p in $candidates) {
+        if (Test-Path $p) {
+            try {
+                $v = (Get-Content $p -Raw | ConvertFrom-Json).version
+                if ($v) { return $v }
+            } catch {}
+        }
+    }
+
+    return "dev"
+}
