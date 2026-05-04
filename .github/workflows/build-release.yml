@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - dev
 
 jobs:
   # ─── Job 1: Build concatenated .ps1 ───
@@ -26,21 +25,17 @@ jobs:
           BASE_VERSION=$(jq -r '.version' manifest.json)
           echo "Base version from manifest: $BASE_VERSION"
 
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            # Check if tag already exists
-            if git tag -l "v${BASE_VERSION}" | grep -q .; then
-              echo "Tag v${BASE_VERSION} already exists, auto-bumping patch..."
-              LATEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v '-' | head -1)
-              if [ -n "$LATEST_TAG" ]; then
-                LATEST=${LATEST_TAG#v}
-                MAJOR=$(echo "$LATEST" | cut -d. -f1)
-                MINOR=$(echo "$LATEST" | cut -d. -f2)
-                PATCH=$(echo "$LATEST" | cut -d. -f3)
-                PATCH=$((PATCH + 1))
-                VERSION="${MAJOR}.${MINOR}.${PATCH}"
-              else
-                VERSION="$BASE_VERSION"
-              fi
+          # Auto-bump patch if tag already exists
+          if git tag -l "v${BASE_VERSION}" | grep -q .; then
+            echo "Tag v${BASE_VERSION} already exists, auto-bumping patch..."
+            LATEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v '-' | head -1)
+            if [ -n "$LATEST_TAG" ]; then
+              LATEST=${LATEST_TAG#v}
+              MAJOR=$(echo "$LATEST" | cut -d. -f1)
+              MINOR=$(echo "$LATEST" | cut -d. -f2)
+              PATCH=$(echo "$LATEST" | cut -d. -f3)
+              PATCH=$((PATCH + 1))
+              VERSION="${MAJOR}.${MINOR}.${PATCH}"
             else
               VERSION="$BASE_VERSION"
             fi
@@ -52,7 +47,6 @@ jobs:
           echo "Resolved version: $VERSION"
 
       - name: Update manifest.json if version bumped
-        if: github.ref_name == 'main'
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           CURRENT=$(jq -r '.version' manifest.json)
@@ -160,21 +154,11 @@ jobs:
         id: release_info
         run: |
           VERSION="${{ needs.build.outputs.version }}"
-
-          if [ "${{ github.ref_name }}" = "main" ]; then
-            TAG="v${VERSION}"
-            NAME="v${VERSION}"
-            PRERELEASE="false"
-          else
-            TAG="v${VERSION}-dev.${{ github.run_number }}"
-            NAME="v${VERSION}-dev.${{ github.run_number }} (pre-release)"
-            PRERELEASE="true"
-          fi
-
+          TAG="v${VERSION}"
+          NAME="v${VERSION}"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
-          echo "Release: $NAME (tag: $TAG, prerelease: $PRERELEASE)"
+          echo "Release: $NAME (tag: $TAG)"
 
       - name: Generate release notes
         run: |
@@ -198,7 +182,7 @@ jobs:
           tag: ${{ steps.release_info.outputs.tag }}
           name: ${{ steps.release_info.outputs.name }}
           bodyFile: release_notes.md
-          prerelease: ${{ steps.release_info.outputs.prerelease }}
+          prerelease: false
           artifacts: |
             ./artifacts/ps1-script/PrepareEwonSD_latest.ps1
             ./artifacts/exe-app/EwonFlexySdPrep.exe
