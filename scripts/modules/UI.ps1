@@ -84,8 +84,7 @@ $Script:MainXaml = @'
           <Button x:Name="btnNext" Content="Suivant" Style="{StaticResource NavBtn}"
                   Background="#1A5276" Foreground="White"/>
         </StackPanel>
-        <TextBlock x:Name="txtVersion" VerticalAlignment="Center" HorizontalAlignment="Center"
-                   Foreground="#888" FontSize="11" Text="v..."/>
+        <Control/>
       </DockPanel>
     </Border>
 
@@ -428,7 +427,7 @@ function Initialize-MainWindow {
 
     # Bind all named elements to script variables
     $elementNames = @(
-        "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs","txtVersion",
+        "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs",
         "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT",
         "txtModeTitle","rbOnline","rbCache","rbPreparation","brdConnStatus","txtConnStatus",
         "txtFwTitle","txtFwHelp","txtFwCurrentLabel","txtFwTargetLabel","cbCurrentFw","cbTargetFw","chkSkipFirmware",
@@ -449,9 +448,6 @@ function Initialize-MainWindow {
             Set-Variable -Name "ui_$name" -Value $el -Scope Script
         }
     }
-
-    # Display app version
-    if ($Script:ui_txtVersion) { $Script:ui_txtVersion.Text = "v$(Get-AppVersion)" }
 
     # Initialize state
     Initialize-Network
@@ -523,9 +519,9 @@ function Update-LanguageButtonHighlight {
 function Apply-UILanguage {
     $Script:StepTitles = Get-StepTitles
 
-    # Window title
+    # Window title (with app version)
     $Script:ui_window = $Script:Window
-    $Script:Window.Title = T "WindowTitle"
+    $Script:Window.Title = "$(T 'WindowTitle') - v$(Get-AppVersion)"
 
     # Navigation buttons
     $Script:ui_btnCancel.Content = T "BtnCancel"
