@@ -1,0 +1,155 @@
+name: Auto PR dev to main
+
+on:
+  push:
+    branches:
+      - dev
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  auto-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Fetch main branch and tags
+        run: |
+          git fetch origin main:refs/remotes/origin/main
+          git fetch --tags
+
+      - name: Resolve next release version
+        id: version
+        run: |
+          # Mirror the logic of build-release.yml so the PR title shows the version
+          # that will actually be published (manifest base, or next patch if tag exists).
+          BASE_VERSION=$(jq -r '.version' manifest.json)
+
+          if git tag -l "v${BASE_VERSION}" | grep -q .; then
+            LATEST_TAG=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v '-' | head -1)
+            if [ -n "$LATEST_TAG" ]; then
+              LATEST=${LATEST_TAG#v}
+              MAJOR=$(echo "$LATEST" | cut -d. -f1)
+              MINOR=$(echo "$LATEST" | cut -d. -f2)
+              PATCH=$(echo "$LATEST" | cut -d. -f3)
+              PATCH=$((PATCH + 1))
+              VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            else
+              VERSION="$BASE_VERSION"
+            fi
+          else
+            VERSION="$BASE_VERSION"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Predicted release version: $VERSION"
+
+      - name: Count commits ahead of main
+        id: diff
+        run: |
+          COUNT=$(git rev-list --count origin/main..HEAD)
+          echo "count=$COUNT" >> "$GITHUB_OUTPUT"
+          echo "Commits ahead of main: $COUNT"
+
+      - name: Generate PR body
+        if: steps.diff.outputs.count != '0'
+        run: |
+          FEATS=""
+          FIXES=""
+          DOCS=""
+          REFACTORS=""
+          CIS=""
+          TESTS=""
+          OTHERS=""
+
+          while IFS='|' read -r MSG HASH; do
+            [ -z "$MSG" ] && continue
+            ENTRY="- ${MSG} (${HASH})"
+            case "$MSG" in
+              feat:*|feat\(*) FEATS="${FEATS}${ENTRY}"$'\n' ;;
+              fix:*|fix\(*) FIXES="${FIXES}${ENTRY}"$'\n' ;;
+              docs:*|docs\(*) DOCS="${DOCS}${ENTRY}"$'\n' ;;
+              refactor:*|refactor\(*) REFACTORS="${REFACTORS}${ENTRY}"$'\n' ;;
+              ci:*|ci\(*) CIS="${CIS}${ENTRY}"$'\n' ;;
+              test:*|test\(*) TESTS="${TESTS}${ENTRY}"$'\n' ;;
+              *) OTHERS="${OTHERS}${ENTRY}"$'\n' ;;
+            esac
+          done < <(git log origin/main..HEAD --pretty=format:'%s|%h')
+
+          {
+            echo "## Release v${{ steps.version.outputs.version }}"
+            echo ""
+            echo "Cette PR rassemble les changements de \`dev\` à fusionner dans \`main\` pour la prochaine release."
+            echo ""
+            echo "**${{ steps.diff.outputs.count }} commit(s)** depuis le dernier merge."
+            echo ""
+
+            if [ -n "$FEATS" ]; then
+              echo "### ✨ Nouveautés"
+              echo ""
+              printf '%s\n' "$FEATS"
+            fi
+            if [ -n "$FIXES" ]; then
+              echo "### 🐛 Corrections"
+              echo ""
+              printf '%s\n' "$FIXES"
+            fi
+            if [ -n "$REFACTORS" ]; then
+              echo "### ♻️ Refactor"
+              echo ""
+              printf '%s\n' "$REFACTORS"
+            fi
+            if [ -n "$DOCS" ]; then
+              echo "### 📚 Documentation"
+              echo ""
+              printf '%s\n' "$DOCS"
+            fi
+            if [ -n "$CIS" ]; then
+              echo "### ⚙️ CI / Build"
+              echo ""
+              printf '%s\n' "$CIS"
+            fi
+            if [ -n "$TESTS" ]; then
+              echo "### 🧪 Tests"
+              echo ""
+              printf '%s\n' "$TESTS"
+            fi
+            if [ -n "$OTHERS" ]; then
+              echo "### 🔧 Autres"
+              echo ""
+              printf '%s\n' "$OTHERS"
+            fi
+
+            echo "---"
+            echo ""
+            echo "_PR auto-générée par GitHub Actions à chaque push sur \`dev\`._"
+          } > pr_body.md
+
+          echo "----- PR body -----"
+          cat pr_body.md
+
+      - name: Create or update PR
+        if: steps.diff.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="Release v${{ steps.version.outputs.version }}"
+
+          PR_NUMBER=$(gh pr list --base main --head dev --state open --json number --jq '.[0].number // empty')
+
+          if [ -n "$PR_NUMBER" ]; then
+            echo "Updating existing PR #$PR_NUMBER"
+            gh pr edit "$PR_NUMBER" --title "$TITLE" --body-file pr_body.md
+          else
+            echo "Creating new PR"
+            gh pr create --base main --head dev --title "$TITLE" --body-file pr_body.md
+          fi
+
+      - name: Skip (no commits ahead)
+        if: steps.diff.outputs.count == '0'
+        run: echo "No commits to merge from dev to main, skipping PR."
