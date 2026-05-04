@@ -89,6 +89,9 @@ jobs:
             LC_ALL=C sed '1s/^\xEF\xBB\xBF//' "$f" >> ./PrepareEwonSD_latest.ps1
           done
 
+          # 3. Inject resolved version (replaces @APP_VERSION@ placeholder in AppState.ps1)
+          sed -i "s/@APP_VERSION@/${{ steps.version.outputs.version }}/g" ./PrepareEwonSD_latest.ps1
+
       - name: Upload .ps1 artifact
         uses: actions/upload-artifact@v4
         with:
