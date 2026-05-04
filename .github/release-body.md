@@ -9,10 +9,9 @@
 
 Cette release contient la dernière version du script de préparation de cartes SD pour Ewon Flexy avec **interface graphique WPF multilingue** (wizard 8 étapes, FR/EN/ES/IT) et génération dynamique de configuration.
 
-### 📝 Dernier changement
-```
-{{COMMIT_MSG}}
-```
+### 📝 Changements de cette version
+
+{{CHANGELOG}}
 
 ---
 
