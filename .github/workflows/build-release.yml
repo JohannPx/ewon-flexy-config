@@ -198,7 +198,7 @@ jobs:
               test:*|test\(*) TESTS="${TESTS}${ENTRY}"$'\n' ;;
               *) OTHERS="${OTHERS}${ENTRY}"$'\n' ;;
             esac
-          done < <(git log $RANGE --pretty=format:'%s|%h')
+          done < <(git log $RANGE --pretty=tformat:'%s|%h')
 
           {
             [ -n "$FEATS" ]     && { echo "**✨ Nouveautés**"; echo ""; printf '%s\n' "$FEATS"; }
