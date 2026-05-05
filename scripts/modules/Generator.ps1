@@ -194,7 +194,8 @@ function Test-SDContents {
         if ($State.Manifest) {
             $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware } | Select-Object -First 1
         }
-        $destName = if ($fwInfo -and $fwInfo.destName) { [string]$fwInfo.destName } else { "ewonfwr.ebus" }
+        $destName = "ewonfwr.ebus"
+        if ($fwInfo -and $fwInfo.PSObject.Properties['destName']) { $destName = [string]$fwInfo.destName }
         $expected += $destName
 
         # Legacy ebus-secure migration path also copies a .ebu alongside the .ebus.

@@ -2,6 +2,15 @@
 
 $Script:HmsFirmwareBaseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
 
+# Strict-mode-safe accessor for optional PSCustomObject properties (manifest fields).
+function Get-FwProp {
+    param($Object, [string]$Name, $Default = $null)
+    if ($null -eq $Object) { return $Default }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    return $Default
+}
+
 function Parse-FirmwareVersion {
     param([string]$Version)
     if ($Version -match '^(\d+)\.(\d+)s?(\d+)?$') {
@@ -28,12 +37,14 @@ function Get-FirmwareDownloadFiles {
 
     $verDash       = $FwInfo.version -replace '\.', '-'
     $verUnderscore = $FwInfo.version -replace '\.', '_'
-    $format = if ($FwInfo.format) { [string]$FwInfo.format } else { "ebus-secure" }
+    $format        = [string](Get-FwProp $FwInfo 'format' 'ebus-secure')
+    $hasEbu        = [bool]  (Get-FwProp $FwInfo 'hasEbu' $false)
+    $productCodes  = @(Get-FwProp $FwInfo 'productCodes' @())
     $files = @()
 
     switch ($format) {
         "edfs-pc" {
-            foreach ($pc in $FwInfo.productCodes) {
+            foreach ($pc in $productCodes) {
                 $files += @{
                     Url       = "$Script:HmsFirmwareBaseUrl/er${verUnderscore}p${pc}_ma.edfs"
                     CacheName = "ewonfwr_p${pc}.edfs"
@@ -45,7 +56,7 @@ function Get-FirmwareDownloadFiles {
                 Url       = "$Script:HmsFirmwareBaseUrl/er-${verDash}-arm-ma_secure.ebus"
                 CacheName = "ewonfwr.ebus"
             }
-            if ($FwInfo.hasEbu) {
+            if ($hasEbu) {
                 $files += @{
                     Url       = "$Script:HmsFirmwareBaseUrl/er-${verDash}-arm-ma.ebu"
                     CacheName = "ewonfwr.ebu"
@@ -118,21 +129,31 @@ function Start-BackgroundFirmwareCache {
     $null = $ps.AddScript({
         param($FwList, $State, $BaseCache, $BaseUrl)
 
+        # Background runspace: no Set-StrictMode, but stay defensive about optional manifest fields.
+        function Get-Prop { param($Obj, $Name, $Default = $null)
+            if ($null -eq $Obj) { return $Default }
+            $p = $Obj.PSObject.Properties[$Name]
+            if ($p) { return $p.Value }
+            return $Default
+        }
+
         function Build-Files {
             param($Fw)
             $verDash       = $Fw.version -replace '\.', '-'
             $verUnderscore = $Fw.version -replace '\.', '_'
-            $format = if ($Fw.format) { [string]$Fw.format } else { "ebus-secure" }
+            $format        = [string](Get-Prop $Fw 'format' 'ebus-secure')
+            $hasEbu        = [bool]  (Get-Prop $Fw 'hasEbu' $false)
+            $productCodes  = @(Get-Prop $Fw 'productCodes' @())
             $list = @()
             switch ($format) {
                 "edfs-pc" {
-                    foreach ($pc in $Fw.productCodes) {
+                    foreach ($pc in $productCodes) {
                         $list += @{ Url = "$BaseUrl/er${verUnderscore}p${pc}_ma.edfs"; CacheName = "ewonfwr_p${pc}.edfs"; Optional = $false }
                     }
                 }
                 default {
                     $list += @{ Url = "$BaseUrl/er-${verDash}-arm-ma_secure.ebus"; CacheName = "ewonfwr.ebus"; Optional = $false }
-                    if ($Fw.hasEbu) {
+                    if ($hasEbu) {
                         $list += @{ Url = "$BaseUrl/er-${verDash}-arm-ma.ebu"; CacheName = "ewonfwr.ebu"; Optional = $true }
                     }
                 }
@@ -208,12 +229,13 @@ function Get-CompatibleFirmwares {
 
     $currentMajor = if ($CurrentFw -eq "14.x") { 14 } else { 15 }
 
+    $pivotVersions = @()
+    if ($Manifest) {
+        $pivotVersions = @($Manifest.firmwares | Where-Object { [bool](Get-FwProp $_ 'pivot' $false) } | ForEach-Object { $_.version })
+    }
+
     if ($currentMajor -eq 14) {
         # 14.x must go through a pivot firmware first (typically 15.0s2).
-        $pivotVersions = @()
-        if ($Manifest) {
-            $pivotVersions = @($Manifest.firmwares | Where-Object { $_.pivot -eq $true } | ForEach-Object { $_.version })
-        }
         if ($pivotVersions.Count -gt 0) {
             return @($AvailableFirmwares | Where-Object { $pivotVersions -contains $_.Full })
         }
@@ -222,10 +244,6 @@ function Get-CompatibleFirmwares {
     }
 
     # Already on 15.x: show all 15+ except pivots (no need to re-flash a pivot).
-    $pivotVersions = @()
-    if ($Manifest) {
-        $pivotVersions = @($Manifest.firmwares | Where-Object { $_.pivot -eq $true } | ForEach-Object { $_.version })
-    }
     return @($AvailableFirmwares | Where-Object { $_.Major -ge 15 -and ($pivotVersions -notcontains $_.Full) })
 }
 
@@ -260,8 +278,8 @@ function Copy-FirmwareToSD {
     if ($Manifest) {
         $fwInfo = $Manifest.firmwares | Where-Object { $_.version -eq $TargetFw } | Select-Object -First 1
     }
-    $format   = if ($fwInfo -and $fwInfo.format)    { [string]$fwInfo.format }    else { "ebus-secure" }
-    $destName = if ($fwInfo -and $fwInfo.destName)  { [string]$fwInfo.destName }  else { "ewonfwr.ebus" }
+    $format   = [string](Get-FwProp $fwInfo 'format'   'ebus-secure')
+    $destName = [string](Get-FwProp $fwInfo 'destName' 'ewonfwr.ebus')
 
     switch ($format) {
         "edfs-pc" {
