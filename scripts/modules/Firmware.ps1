@@ -9,6 +9,16 @@ function Get-FwProp {
     return $Default
 }
 
+# Maps the user-facing Flexy model to the HMS product code used in firmware URLs.
+function Get-FlexyProductCode {
+    param([string]$FlexyModel)
+    switch ($FlexyModel) {
+        "202" { return 21 }
+        "205" { return 24 }
+        default { return 21 }
+    }
+}
+
 function Parse-FirmwareVersion {
     param([string]$Version)
     if ($Version -match '^(\d+)\.(\d+)s?(\d+)?$') {
@@ -25,12 +35,13 @@ function Parse-FirmwareVersion {
 function Get-FirmwareSdFiles {
     param($FwInfo, [string]$CurrentFw, [string]$FlexyModel)
 
+    $targetPc = Get-FlexyProductCode -FlexyModel $FlexyModel
     $sdFiles = @()
     foreach ($f in @(Get-FwProp $FwInfo 'files' @())) {
         $copyOnlyForCurrent = [string](Get-FwProp $f 'copyOnlyForCurrent' '')
-        $forFlexy           = [string](Get-FwProp $f 'forFlexy' '')
+        $filePc             = Get-FwProp $f 'pc' $null
         if ($copyOnlyForCurrent -and $copyOnlyForCurrent -ne $CurrentFw) { continue }
-        if ($forFlexy           -and $forFlexy           -ne $FlexyModel) { continue }
+        if ($null -ne $filePc -and [int]$filePc -ne $targetPc) { continue }
         $sdName = [string](Get-FwProp $f 'sdName' '')
         if ($sdName) { $sdFiles += $sdName }
     }
@@ -242,11 +253,12 @@ function Copy-FirmwareToSD {
         & $OnLog ((T "FwUpdateMsg") -f $TargetFw)
     }
 
+    $targetPc = Get-FlexyProductCode -FlexyModel $FlexyModel
     foreach ($f in @(Get-FwProp $fwInfo 'files' @())) {
         $copyOnlyForCurrent = [string](Get-FwProp $f 'copyOnlyForCurrent' '')
-        $forFlexy           = [string](Get-FwProp $f 'forFlexy' '')
+        $filePc             = Get-FwProp $f 'pc' $null
         if ($copyOnlyForCurrent -and $copyOnlyForCurrent -ne $CurrentFw) { continue }
-        if ($forFlexy           -and $forFlexy           -ne $FlexyModel) { continue }
+        if ($null -ne $filePc -and [int]$filePc -ne $targetPc) { continue }
 
         $cacheName = [string](Get-FwProp $f 'cacheName' '')
         $sdName    = [string](Get-FwProp $f 'sdName' '')
