@@ -158,6 +158,13 @@ $Script:MainXaml = @'
             </Border>
 
             <Separator Margin="0,8"/>
+            <TextBlock x:Name="txtHwTitle" Text="Materiel" Style="{StaticResource StepHeader}"/>
+            <StackPanel Orientation="Horizontal" Margin="0,5">
+              <TextBlock x:Name="txtFlexyModelLabel" Text="Modele Flexy :" VerticalAlignment="Center" Width="130"/>
+              <ComboBox x:Name="cbFlexyModel" Width="180"/>
+            </StackPanel>
+
+            <Separator Margin="0,8"/>
             <TextBlock x:Name="txtFwTitle" Text="Firmware" Style="{StaticResource StepHeader}"/>
             <TextBlock x:Name="txtFwHelp" Text="..." Style="{StaticResource SubText}"/>
 
@@ -430,6 +437,7 @@ function Initialize-MainWindow {
         "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs",
         "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT",
         "txtModeTitle","rbOnline","rbCache","rbPreparation","brdConnStatus","txtConnStatus",
+        "txtHwTitle","txtFlexyModelLabel","cbFlexyModel",
         "txtFwTitle","txtFwHelp","txtFwCurrentLabel","txtFwTargetLabel","cbCurrentFw","cbTargetFw","chkSkipFirmware",
         "txtConnTypeTitle","txtConnTypeSubtitle",
         "txt4GTitle","txt4GDesc","txtEthTitle","txtEthDesc","txtDLTitle","txtDLDesc",
@@ -543,6 +551,9 @@ function Apply-UILanguage {
 
     # Step 0
     $Script:ui_txtModeTitle.Text = T "ModeTitle"
+    $Script:ui_txtHwTitle.Text = T "HwTitle"
+    $Script:ui_txtFlexyModelLabel.Text = T "FlexyModelLabel"
+    Build-FlexyModelCombo
     $Script:ui_txtFwTitle.Text = T "FwTitle"
     $Script:ui_txtFwHelp.Text = T "FwHelpText"
     $Script:ui_txtFwCurrentLabel.Text = T "FwCurrentLabel"
@@ -792,6 +803,10 @@ function Collect-StepState {
             elseif ($Script:ui_rbCache.IsChecked)    { Set-AppStateValue -Key "Mode" -Value "Cache" }
             elseif ($Script:ui_rbPreparation.IsChecked) { Set-AppStateValue -Key "Mode" -Value "Preparation" }
 
+            # Hardware: Flexy model
+            $modelItem = $Script:ui_cbFlexyModel.SelectedItem
+            if ($modelItem -and $modelItem.Tag) { Set-AppStateValue -Key "FlexyModel" -Value $modelItem.Tag }
+
             # Firmware
             Set-AppStateValue -Key "SkipFirmwareUpdate" -Value ([bool]$Script:ui_chkSkipFirmware.IsChecked)
             if (-not $Script:ui_chkSkipFirmware.IsChecked) {
@@ -872,6 +887,19 @@ function Collect-StepState {
 
 # ============ STEP 0: MODE + FIRMWARE ============
 
+function Build-FlexyModelCombo {
+    $previous = (Get-AppState).FlexyModel
+    $Script:ui_cbFlexyModel.Items.Clear()
+    foreach ($model in @("202", "205")) {
+        $item = New-Object System.Windows.Controls.ComboBoxItem
+        $item.Content = T "FlexyModel$model"
+        $item.Tag = $model
+        $Script:ui_cbFlexyModel.Items.Add($item) | Out-Null
+        if ($model -eq $previous) { $Script:ui_cbFlexyModel.SelectedItem = $item }
+    }
+    if ($Script:ui_cbFlexyModel.SelectedIndex -lt 0) { $Script:ui_cbFlexyModel.SelectedIndex = 0 }
+}
+
 function Register-Step0Events {
     $Script:ui_chkSkipFirmware.Add_Checked({
         $Script:ui_cbCurrentFw.IsEnabled = $false
@@ -884,6 +912,11 @@ function Register-Step0Events {
 
     $Script:ui_cbCurrentFw.Add_SelectionChanged({
         Update-TargetFirmwareList
+    })
+
+    $Script:ui_cbFlexyModel.Add_SelectionChanged({
+        $sel = $Script:ui_cbFlexyModel.SelectedItem
+        if ($sel -and $sel.Tag) { Set-AppStateValue -Key "FlexyModel" -Value $sel.Tag }
     })
 
     Populate-FirmwareOptions
@@ -995,7 +1028,7 @@ function Update-TargetFirmwareList {
     if (-not $currentSel) { return }
 
     $state = Get-AppState
-    $compatible = @(Get-CompatibleFirmwares -CurrentFw $currentSel.ToString() -AvailableFirmwares $state.AvailableFirmwares)
+    $compatible = @(Get-CompatibleFirmwares -CurrentFw $currentSel.ToString() -AvailableFirmwares $state.AvailableFirmwares -Manifest $state.Manifest)
     Set-AppStateValue -Key "CompatibleFirmwares" -Value $compatible
 
     foreach ($fw in $compatible) {
@@ -1372,6 +1405,7 @@ function Build-SummaryText {
     $sb = [System.Text.StringBuilder]::new()
 
     [void]$sb.AppendLine("$(T 'SumMode') : $($state.Mode)")
+    [void]$sb.AppendLine("$(T 'SumFlexyModel') : Flexy $($state.FlexyModel)")
     [void]$sb.AppendLine("$(T 'SumConnType') : $($state.ConnectionType)")
     [void]$sb.AppendLine("")
 
@@ -1541,8 +1575,7 @@ function Start-PreparationMode {
             Update-WpfUI
 
             foreach ($fw in @($manifest.firmwares)) {
-                $hasEbu = [bool]$fw.hasEbu
-                Download-HMSFirmware -Version $fw.version -HasEbu $hasEbu `
+                Download-HMSFirmware -FwInfo $fw `
                     -OnLog { param($msg) Add-LogEntry $msg; Update-WpfUI } | Out-Null
             }
 

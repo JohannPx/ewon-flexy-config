@@ -189,10 +189,18 @@ function Test-SDContents {
     if (-not $State.SkipFirmwareUpdate -and $State.TargetFirmware) {
         $cacheDir = Get-LocalCacheDir
         $targetFwDir = Join-Path (Join-Path $cacheDir "firmware") $State.TargetFirmware
-        if ($State.CurrentFirmware -eq "14.x" -and (Test-Path (Join-Path $targetFwDir "ewonfwr.ebu"))) {
-            $expected += @("ewonfwr.ebus", "ewonfwr.ebu")
-        } else {
-            $expected += "ewonfwr.ebus"
+
+        $fwInfo = $null
+        if ($State.Manifest) {
+            $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware } | Select-Object -First 1
+        }
+        $destName = if ($fwInfo -and $fwInfo.destName) { [string]$fwInfo.destName } else { "ewonfwr.ebus" }
+        $expected += $destName
+
+        # Legacy ebus-secure migration path also copies a .ebu alongside the .ebus.
+        if ($destName -eq "ewonfwr.ebus" -and $State.CurrentFirmware -eq "14.x" `
+            -and (Test-Path (Join-Path $targetFwDir "ewonfwr.ebu"))) {
+            $expected += "ewonfwr.ebu"
         }
     }
 
@@ -339,9 +347,9 @@ function Invoke-Generation {
     # Download firmware if Online mode
     if ($State.Mode -eq "Online" -and -not $State.SkipFirmwareUpdate -and $State.TargetFirmware -and $State.Manifest) {
         & $OnProgress 10 ((T "FwDownloading") -f $State.TargetFirmware)
-        $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware }
-        $hasEbu = [bool]$fwInfo.hasEbu
-        $ok = Download-HMSFirmware -Version $State.TargetFirmware -HasEbu $hasEbu -OnLog $OnLog
+        $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware } | Select-Object -First 1
+        if (-not $fwInfo) { throw (T "GenFwDownloadFail") }
+        $ok = Download-HMSFirmware -FwInfo $fwInfo -OnLog $OnLog
         if (-not $ok) { throw (T "GenFwDownloadFail") }
     }
 
@@ -377,7 +385,8 @@ function Invoke-Generation {
     if (-not $State.SkipFirmwareUpdate -and $State.TargetFirmware) {
         & $OnProgress 70 (T "GenFwCopy")
         Copy-FirmwareToSD -SdRoot $sdRoot -TargetFw $State.TargetFirmware `
-            -CurrentFw $State.CurrentFirmware -Manifest $State.Manifest -OnLog $OnLog
+            -CurrentFw $State.CurrentFirmware -FlexyModel $State.FlexyModel `
+            -Manifest $State.Manifest -OnLog $OnLog
     }
 
     # Write T2M

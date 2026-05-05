@@ -1,5 +1,7 @@
 # Firmware.ps1 - Firmware version parsing, download, compatibility
 
+$Script:HmsFirmwareBaseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
+
 function Parse-FirmwareVersion {
     param([string]$Version)
     if ($Version -match '^(\d+)\.(\d+)s?(\d+)?$') {
@@ -11,47 +13,90 @@ function Parse-FirmwareVersion {
     return $null
 }
 
+function Get-FlexyProductCode {
+    param([string]$FlexyModel)
+    switch ($FlexyModel) {
+        "202" { return 21 }
+        "205" { return 24 }
+        default { return 21 }
+    }
+}
+
+# Returns the list of files to download for a firmware entry: @{Url; CacheName}
+function Get-FirmwareDownloadFiles {
+    param([Parameter(Mandatory)]$FwInfo)
+
+    $verDash       = $FwInfo.version -replace '\.', '-'
+    $verUnderscore = $FwInfo.version -replace '\.', '_'
+    $format = if ($FwInfo.format) { [string]$FwInfo.format } else { "ebus-secure" }
+    $files = @()
+
+    switch ($format) {
+        "edfs-pc" {
+            foreach ($pc in $FwInfo.productCodes) {
+                $files += @{
+                    Url       = "$Script:HmsFirmwareBaseUrl/er${verUnderscore}p${pc}_ma.edfs"
+                    CacheName = "ewonfwr_p${pc}.edfs"
+                }
+            }
+        }
+        default {
+            $files += @{
+                Url       = "$Script:HmsFirmwareBaseUrl/er-${verDash}-arm-ma_secure.ebus"
+                CacheName = "ewonfwr.ebus"
+            }
+            if ($FwInfo.hasEbu) {
+                $files += @{
+                    Url       = "$Script:HmsFirmwareBaseUrl/er-${verDash}-arm-ma.ebu"
+                    CacheName = "ewonfwr.ebu"
+                }
+            }
+        }
+    }
+
+    return $files
+}
+
 function Download-HMSFirmware {
     param(
-        [Parameter(Mandatory)][string]$Version,
-        [Parameter(Mandatory)][bool]$HasEbu,
+        [Parameter(Mandatory)]$FwInfo,
         [scriptblock]$OnLog = { param($msg) }
     )
 
-    $versionForUrl = $Version -replace '\.', '-'
-    $baseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
+    $cacheDir   = Get-LocalCacheDir
+    $fwBaseDir  = New-Dir (Join-Path $cacheDir "firmware")
+    $versionDir = New-Dir (Join-Path $fwBaseDir $FwInfo.version)
+    $files      = Get-FirmwareDownloadFiles -FwInfo $FwInfo
 
-    $cacheDir = Get-LocalCacheDir
-    $fwBaseDir = New-Dir (Join-Path $cacheDir "firmware")
-    $versionDir = New-Dir (Join-Path $fwBaseDir $Version)
-
-    $ebusPath = Join-Path $versionDir "ewonfwr.ebus"
-    if (Test-Path $ebusPath) {
-        & $OnLog ((T "FwCached") -f $Version)
+    # Required files = all files that don't end with .ebu (the .ebu is best-effort)
+    $required = @($files | Where-Object { -not $_.CacheName.EndsWith('.ebu') })
+    $allRequiredCached = $true
+    foreach ($f in $required) {
+        if (-not (Test-Path (Join-Path $versionDir $f.CacheName))) { $allRequiredCached = $false; break }
+    }
+    if ($allRequiredCached) {
+        & $OnLog ((T "FwCached") -f $FwInfo.version)
         return $true
     }
 
-    & $OnLog ((T "FwDownloading") -f $Version)
-    try {
-        $ebusUrl = "$baseUrl/er-$versionForUrl-arm-ma_secure.ebus"
-        Invoke-WebRequest -Uri $ebusUrl -OutFile $ebusPath -UseBasicParsing
-
-        if ($HasEbu) {
-            $ebuUrl = "$baseUrl/er-$versionForUrl-arm-ma.ebu"
-            $ebuPath = Join-Path $versionDir "ewonfwr.ebu"
-            try {
-                Invoke-WebRequest -Uri $ebuUrl -OutFile $ebuPath -UseBasicParsing
-            } catch {
-                & $OnLog ((T "FwEbuNote") -f $Version)
+    & $OnLog ((T "FwDownloading") -f $FwInfo.version)
+    foreach ($f in $files) {
+        $dest = Join-Path $versionDir $f.CacheName
+        if (Test-Path $dest) { continue }
+        try {
+            Invoke-WebRequest -Uri $f.Url -OutFile $dest -UseBasicParsing
+        } catch {
+            if ($f.CacheName.EndsWith('.ebu')) {
+                & $OnLog ((T "FwEbuNote") -f $FwInfo.version)
+            } else {
+                & $OnLog "$(T 'ErrorPrefix') $($_.Exception.Message)"
+                return $false
             }
         }
-
-        & $OnLog ((T "FwDownloaded") -f $Version)
-        return $true
-    } catch {
-        & $OnLog "$(T 'ErrorPrefix') $($_.Exception.Message)"
-        return $false
     }
+
+    & $OnLog ((T "FwDownloaded") -f $FwInfo.version)
+    return $true
 }
 
 function Start-BackgroundFirmwareCache {
@@ -71,8 +116,30 @@ function Start-BackgroundFirmwareCache {
     $ps.Runspace.Open()
 
     $null = $ps.AddScript({
-        param($FwList, $State, $BaseCache)
-        $baseUrl = "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source"
+        param($FwList, $State, $BaseCache, $BaseUrl)
+
+        function Build-Files {
+            param($Fw)
+            $verDash       = $Fw.version -replace '\.', '-'
+            $verUnderscore = $Fw.version -replace '\.', '_'
+            $format = if ($Fw.format) { [string]$Fw.format } else { "ebus-secure" }
+            $list = @()
+            switch ($format) {
+                "edfs-pc" {
+                    foreach ($pc in $Fw.productCodes) {
+                        $list += @{ Url = "$BaseUrl/er${verUnderscore}p${pc}_ma.edfs"; CacheName = "ewonfwr_p${pc}.edfs"; Optional = $false }
+                    }
+                }
+                default {
+                    $list += @{ Url = "$BaseUrl/er-${verDash}-arm-ma_secure.ebus"; CacheName = "ewonfwr.ebus"; Optional = $false }
+                    if ($Fw.hasEbu) {
+                        $list += @{ Url = "$BaseUrl/er-${verDash}-arm-ma.ebu"; CacheName = "ewonfwr.ebu"; Optional = $true }
+                    }
+                }
+            }
+            return $list
+        }
+
         foreach ($fw in $FwList) {
             $State.CurrentFw = $fw.version
             $State.Status = "Downloading"
@@ -81,29 +148,20 @@ function Start-BackgroundFirmwareCache {
                 if (-not (Test-Path $versionDir)) {
                     New-Item -Path $versionDir -ItemType Directory -Force | Out-Null
                 }
-                $ebusPath = Join-Path $versionDir "ewonfwr.ebus"
-                if (-not (Test-Path $ebusPath)) {
-                    $vUrl = $fw.version -replace '\.', '-'
+                foreach ($f in (Build-Files -Fw $fw)) {
+                    $dest = Join-Path $versionDir $f.CacheName
+                    if (Test-Path $dest) { continue }
                     $wc = New-Object System.Net.WebClient
-                    $wc.DownloadFile("$baseUrl/er-$vUrl-arm-ma_secure.ebus", $ebusPath)
-                    $wc.Dispose()
-                }
-                $hasEbu = if ($fw.hasEbu) { [bool]$fw.hasEbu } else { $false }
-                if ($hasEbu) {
-                    $ebuPath = Join-Path $versionDir "ewonfwr.ebu"
-                    if (-not (Test-Path $ebuPath)) {
-                        $vUrl = $fw.version -replace '\.', '-'
-                        $wc = New-Object System.Net.WebClient
-                        try { $wc.DownloadFile("$baseUrl/er-$vUrl-arm-ma.ebu", $ebuPath) } catch {}
-                        $wc.Dispose()
-                    }
+                    try { $wc.DownloadFile($f.Url, $dest) }
+                    catch { if (-not $f.Optional) { throw } }
+                    finally { $wc.Dispose() }
                 }
             } catch {}
             $State.Index++
         }
         $State.Status = "Complete"
         $State.Done = $true
-    }).AddArgument($Firmwares).AddArgument($Script:FwCacheState).AddArgument($CacheDir)
+    }).AddArgument($Firmwares).AddArgument($Script:FwCacheState).AddArgument($CacheDir).AddArgument($Script:HmsFirmwareBaseUrl)
 
     $Script:FwCachePowerShell = $ps
     $Script:FwCacheAsync = $ps.BeginInvoke()
@@ -144,15 +202,31 @@ function Get-AvailableFirmwares {
 function Get-CompatibleFirmwares {
     param(
         [string]$CurrentFw,
-        [array]$AvailableFirmwares
+        [array]$AvailableFirmwares,
+        $Manifest
     )
 
     $currentMajor = if ($CurrentFw -eq "14.x") { 14 } else { 15 }
+
     if ($currentMajor -eq 14) {
+        # 14.x must go through a pivot firmware first (typically 15.0s2).
+        $pivotVersions = @()
+        if ($Manifest) {
+            $pivotVersions = @($Manifest.firmwares | Where-Object { $_.pivot -eq $true } | ForEach-Object { $_.version })
+        }
+        if ($pivotVersions.Count -gt 0) {
+            return @($AvailableFirmwares | Where-Object { $pivotVersions -contains $_.Full })
+        }
+        # Fallback (no manifest / no pivot declared): show 15.0.x as before.
         return @($AvailableFirmwares | Where-Object { $_.Major -eq 15 -and $_.Minor -eq 0 })
-    } else {
-        return @($AvailableFirmwares | Where-Object { $_.Major -ge 15 })
     }
+
+    # Already on 15.x: show all 15+ except pivots (no need to re-flash a pivot).
+    $pivotVersions = @()
+    if ($Manifest) {
+        $pivotVersions = @($Manifest.firmwares | Where-Object { $_.pivot -eq $true } | ForEach-Object { $_.version })
+    }
+    return @($AvailableFirmwares | Where-Object { $_.Major -ge 15 -and ($pivotVersions -notcontains $_.Full) })
 }
 
 function Get-CurrentFirmwareOptions {
@@ -170,38 +244,56 @@ function Copy-FirmwareToSD {
         [Parameter(Mandatory)][string]$SdRoot,
         [string]$TargetFw,
         [string]$CurrentFw,
+        [string]$FlexyModel,
         $Manifest,
         [scriptblock]$OnLog = { param($msg) }
     )
 
     if (-not $TargetFw) { return }
 
-    $cacheDir = Get-LocalCacheDir
-    $fwDir = Join-Path $cacheDir "firmware"
-    $targetFwDir = Join-Path $fwDir $TargetFw
+    $cacheDir   = Get-LocalCacheDir
+    $fwDir      = Join-Path $cacheDir "firmware"
+    $targetDir  = Join-Path $fwDir $TargetFw
+    if (-not (Test-Path $targetDir)) { throw ((T "FwNotFound") -f $targetDir) }
 
-    if (-not (Test-Path $targetFwDir)) { throw ((T "FwNotFound") -f $targetFwDir) }
-
-    $ebus = Join-Path $targetFwDir "ewonfwr.ebus"
-    $ebu  = Join-Path $targetFwDir "ewonfwr.ebu"
-
-    $filesToCopy = @()
-    if ($CurrentFw -eq "14.x" -and (Test-Path $ebu)) {
-        $filesToCopy = @($ebus, $ebu)
-        & $OnLog ((T "FwMigration") -f $TargetFw)
-    } else {
-        $filesToCopy = @($ebus)
-        & $OnLog ((T "FwUpdateMsg") -f $TargetFw)
+    $fwInfo = $null
+    if ($Manifest) {
+        $fwInfo = $Manifest.firmwares | Where-Object { $_.version -eq $TargetFw } | Select-Object -First 1
     }
+    $format   = if ($fwInfo -and $fwInfo.format)    { [string]$fwInfo.format }    else { "ebus-secure" }
+    $destName = if ($fwInfo -and $fwInfo.destName)  { [string]$fwInfo.destName }  else { "ewonfwr.ebus" }
 
-    foreach ($src in $filesToCopy) {
-        $leaf = Split-Path $src -Leaf
-        $dest = Join-Path $SdRoot $leaf
-        if (Test-Path $src) {
-            Copy-Item -Path $src -Destination $dest -Force
-            & $OnLog ((T "FwCopied") -f $leaf)
-        } else {
-            & $OnLog ((T "FwFileMissing") -f $src)
+    switch ($format) {
+        "edfs-pc" {
+            $pc      = Get-FlexyProductCode -FlexyModel $FlexyModel
+            $srcName = "ewonfwr_p${pc}.edfs"
+            $src     = Join-Path $targetDir $srcName
+            if (-not (Test-Path $src)) { & $OnLog ((T "FwFileMissing") -f $src); return }
+            Copy-Item -Path $src -Destination (Join-Path $SdRoot $destName) -Force
+            & $OnLog ((T "FwUpdateMsg") -f $TargetFw)
+            & $OnLog ((T "FwCopied") -f $destName)
+        }
+        default {
+            $ebus = Join-Path $targetDir "ewonfwr.ebus"
+            $ebu  = Join-Path $targetDir "ewonfwr.ebu"
+            $filesToCopy = @()
+            if ($CurrentFw -eq "14.x" -and (Test-Path $ebu)) {
+                $filesToCopy = @($ebus, $ebu)
+                & $OnLog ((T "FwMigration") -f $TargetFw)
+            } else {
+                $filesToCopy = @($ebus)
+                & $OnLog ((T "FwUpdateMsg") -f $TargetFw)
+            }
+            foreach ($src in $filesToCopy) {
+                $leaf = Split-Path $src -Leaf
+                $dest = Join-Path $SdRoot $leaf
+                if (Test-Path $src) {
+                    Copy-Item -Path $src -Destination $dest -Force
+                    & $OnLog ((T "FwCopied") -f $leaf)
+                } else {
+                    & $OnLog ((T "FwFileMissing") -f $src)
+                }
+            }
         }
     }
 }
