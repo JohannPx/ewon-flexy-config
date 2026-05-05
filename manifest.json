@@ -3,18 +3,40 @@
   "firmwares": [
     {
       "version": "15.0s2",
-      "format": "ebus-secure",
-      "destName": "ewonfwr.ebus",
-      "hasEbu": true,
       "pivot": true,
-      "description": "Pivot firmware for 14.x to 15.x migration"
+      "description": "Pivot firmware for 14.x to 15.x migration",
+      "files": [
+        {
+          "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er-15-0s2-arm-ma_secure.ebus",
+          "cacheName": "ewonfwr.ebus",
+          "sdName": "ewonfwr.ebus"
+        },
+        {
+          "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er-15-0s2-arm-ma.ebu",
+          "cacheName": "ewonfwr.ebu",
+          "sdName": "ewonfwr.ebu",
+          "optional": true,
+          "copyOnlyForCurrent": "14.x"
+        }
+      ]
     },
     {
       "version": "15.0s4",
-      "format": "edfs-pc",
-      "productCodes": [21, 24],
-      "destName": "ewonfwr.edfs",
-      "description": "Stable firmware 15.0s4 (Flexy 202 PC=21, Flexy 205 PC=24)"
+      "description": "Stable firmware for Flexy 202 and 205",
+      "files": [
+        {
+          "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er15_0s4p21_ma.edfs",
+          "cacheName": "ewonfwr_p21.edfs",
+          "sdName": "ewonfwr.edfs",
+          "forFlexy": "202"
+        },
+        {
+          "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er15_0s4p24_ma.edfs",
+          "cacheName": "ewonfwr_p24.edfs",
+          "sdName": "ewonfwr.edfs",
+          "forFlexy": "205"
+        }
+      ]
     }
   ]
 }

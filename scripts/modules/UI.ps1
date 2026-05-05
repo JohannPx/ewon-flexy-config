@@ -999,8 +999,13 @@ function Populate-FirmwareOptions {
     $Script:ui_cbCurrentFw.Items.Clear()
     $Script:ui_cbTargetFw.Items.Clear()
 
-    $manifest = Get-CachedManifest
+    # Always try fetching the latest manifest from GitHub first; Get-Manifest
+    # falls back to the local cache automatically when offline. This ensures
+    # newly published firmwares (e.g. 15.0s4) appear without the user having
+    # to navigate forward and back.
+    $manifest = Get-Manifest -OnLog { param($msg) }
     if ($manifest) {
+        Save-ManifestToCache -Manifest $manifest
         Set-AppStateValue -Key "Manifest" -Value $manifest
     }
 

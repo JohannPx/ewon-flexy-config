@@ -187,21 +187,12 @@ function Test-SDContents {
         $expected += "T2M.txt"
     }
     if (-not $State.SkipFirmwareUpdate -and $State.TargetFirmware) {
-        $cacheDir = Get-LocalCacheDir
-        $targetFwDir = Join-Path (Join-Path $cacheDir "firmware") $State.TargetFirmware
-
         $fwInfo = $null
         if ($State.Manifest) {
             $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware } | Select-Object -First 1
         }
-        $destName = "ewonfwr.ebus"
-        if ($fwInfo -and $fwInfo.PSObject.Properties['destName']) { $destName = [string]$fwInfo.destName }
-        $expected += $destName
-
-        # Legacy ebus-secure migration path also copies a .ebu alongside the .ebus.
-        if ($destName -eq "ewonfwr.ebus" -and $State.CurrentFirmware -eq "14.x" `
-            -and (Test-Path (Join-Path $targetFwDir "ewonfwr.ebu"))) {
-            $expected += "ewonfwr.ebu"
+        if ($fwInfo) {
+            $expected += @(Get-FirmwareSdFiles -FwInfo $fwInfo -CurrentFw $State.CurrentFirmware -FlexyModel $State.FlexyModel)
         }
     }
 
