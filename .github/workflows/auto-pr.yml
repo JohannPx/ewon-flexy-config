@@ -79,7 +79,7 @@ jobs:
               test:*|test\(*) TESTS="${TESTS}${ENTRY}"$'\n' ;;
               *) OTHERS="${OTHERS}${ENTRY}"$'\n' ;;
             esac
-          done < <(git log origin/main..HEAD --pretty=format:'%s|%h')
+          done < <(git log origin/main..HEAD --pretty=tformat:'%s|%h')
 
           {
             echo "## Release v${{ steps.version.outputs.version }}"
