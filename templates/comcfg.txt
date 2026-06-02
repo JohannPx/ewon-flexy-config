@@ -6,6 +6,8 @@ WANPermCnx:{WANPermCnx}
 VPNCnxType:2
 VPNKeyType:1
 VPNDrvMode:1
+VPNPortOut:{VPNPortOut}
+VPNProto:{VPNProto}
 FwrdToWAN:0
 WirelessNet:0
 WizICnxDone:1

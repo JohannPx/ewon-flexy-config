@@ -17,6 +17,9 @@ $Script:ParameterDefinitions = @(
     @{File="comcfg.txt"; Param="WANItfProt"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="3"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
     @{File="comcfg.txt"; Param="WANPermCnx"; Default=$null; Description=$null; Value4G="1"; ValueEthernet="1"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
     @{File="comcfg.txt"; Param="LANWANConfig"; Default=$null; Description=$null; Value4G="8"; ValueEthernet="8"; ValueDatalogger="0"; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
+    # VPN tunnel: 4G/Datalogger laissés au defaut Ewon (UDP 1194 d'abord, repli TCP auto) ; Ethernet force en TCP 443 pour compatibilite avec les pare-feu client
+    @{File="comcfg.txt"; Param="VPNPortOut"; Default=$null; Description=$null; Value4G=$null; ValueEthernet="443"; ValueDatalogger=$null; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
+    @{File="comcfg.txt"; Param="VPNProto"; Default=$null; Description=$null; Value4G=$null; ValueEthernet="1"; ValueDatalogger=$null; Type="Auto"; AlwaysAsk=$false; ConnectionType=$null; Condition=$null; Choices=$null; Group=$null}
 
     # Ethernet specific
     @{File="comcfg.txt"; Param="UseBOOTP2"; Default="2"; Description="Desc_UseBOOTP2"; Type="Choice"; Choices=@("0","2"); ConnectionType="Ethernet"; AlwaysAsk=$false; Condition=$null; Value4G=$null; ValueEthernet=$null; ValueDatalogger=$null; Group="Group_WAN"}
@@ -123,9 +126,9 @@ function Get-UnusedParams {
 
     $unused = @()
     if ($ConnectionType -eq "4G") {
-        $unused = @("UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2", "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass")
+        $unused = @("UseBOOTP2", "EthIpAddr2", "EthIpMask2", "EthGW", "EthDns1", "EthDns2", "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass", "VPNPortOut", "VPNProto")
     } elseif ($ConnectionType -eq "Datalogger") {
-        $unused = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1", "UseBOOTP2", "EthIpAddr2", "EthIpMask2", "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass")
+        $unused = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1", "UseBOOTP2", "EthIpAddr2", "EthIpMask2", "WANPxyMode", "WANPxyAddr", "WANPxyPort", "WANPxyUsr", "WANPxyPass", "VPNPortOut", "VPNProto")
     } else {
         $unused = @("PIN", "PdpApn", "PPPClUserName1", "PPPClPassword1")
 
