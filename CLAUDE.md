@@ -17,9 +17,10 @@ Voir ce fichier pour la liste des commandes auto-approuvées (git, dotnet, power
 Format : `type: description en français`
 Types : `feat`, `fix`, `docs`, `refactor`, `ci`, `test`
 
-### Branches
-- `main` : production (releases stables versionnées `vX.Y.Z`)
-- `dev` : développement (pre-releases `vX.Y.Z-dev.N`)
+### Branches (GitHub Flow)
+- `main` : seule branche permanente, toujours déployable (releases stables versionnées `vX.Y.Z`)
+- Une branche par feature/fix créée depuis `main` (`feat/...`, `fix/...`, `docs/...`), puis Pull Request vers `main` et suppression de la branche après merge
+- Le merge sur `main` déclenche le build et la release (tag `vX.Y.Z`)
 
 ### Version
 Source de vérité : `manifest.json` champ `version`

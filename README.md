@@ -12,7 +12,7 @@
 
 - 📦 **Exécutable Windows** : Distribution en `.exe` auto-installable (sans droits admin) avec mises à jour automatiques depuis GitHub
 - 🔄 **Auto-update silencieux** : Vérification et mise à jour automatique à chaque démarrage
-- 🏷️ **Releases versionnées** : Tags semver (`v5.2.0`), pre-releases sur branche `dev` pour tests avant production
+- 🏷️ **Releases versionnées** : Tags semver (`v5.2.0`) publiés automatiquement à chaque merge sur `main`
 - 🌍 **Multilingue** : Interface disponible en français, anglais, espagnol et italien (sélection par drapeaux)
 - 🖥️ **Interface graphique WPF** : Wizard 8 étapes avec icône SD personnalisée (titre + barre des tâches)
 - 🧩 **Architecture modulaire** : Code restructuré en 9 modules spécialisés (+ Localization.ps1)
@@ -197,16 +197,13 @@ ewon-flexy-config/
 
 ### 🔨 Build CI/CD
 
-Le workflow GitHub Actions s'exécute sur push vers `main` ou `dev` en 3 jobs :
+Le workflow GitHub Actions s'exécute sur push vers `main` (donc à chaque merge de PR) en 3 jobs :
 
 1. **Build** (Ubuntu) : Concatène les 9 modules PowerShell en un fichier unique `PrepareEwonSD_latest.ps1` avec BOM UTF-8
 2. **Package** (Windows) : Génère l'icône, compile le wrapper C# via `dotnet publish` → `EwonFlexySdPrep.exe` (self-contained, single-file, trimmed)
-3. **Release** : Publie une release GitHub avec les 2 assets (.exe + .ps1)
+3. **Release** : Publie une release GitHub stable (tag `vX.Y.Z`) avec les 2 assets (.exe + .ps1)
 
-| Branche | Type de release | Tag | Auto-update |
-|---------|----------------|-----|-------------|
-| `main` | Stable | `v5.2.0` | Oui (utilisateurs en production) |
-| `dev` | Pre-release | `v5.2.0-dev.42` | Non (ignoré par `/releases/latest`) |
+> Modèle **GitHub Flow** : on développe sur des branches de feature courtes (`feat/...`, `fix/...`) ouvertes en Pull Request vers `main`. Le merge sur `main` produit la release.
 
 En développement local, le launcher détecte le dossier `modules/` et charge les fichiers individuellement via dot-sourcing.
 
