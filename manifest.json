@@ -28,13 +28,13 @@
           "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er15_0s4p21_ma.edfs",
           "cacheName": "ewonfwr_p21.edfs",
           "sdName": "ewonfwr.edfs",
-          "forFlexy": "202"
+          "pc": 21
         },
         {
           "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er15_0s4p24_ma.edfs",
           "cacheName": "ewonfwr_p24.edfs",
           "sdName": "ewonfwr.edfs",
-          "forFlexy": "205"
+          "pc": 24
         }
       ]
     }
