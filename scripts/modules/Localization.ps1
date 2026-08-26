@@ -146,6 +146,7 @@ $Script:Strings = @{
         FwCopied          = "+ {0} copié"
         FwFileMissing     = "! Fichier manquant: {0}"
         FwNotFound        = "Firmware non trouvé dans le cache: {0}"
+        FwUnknownModel    = "Modèle Flexy inconnu: {0}"
 
         # --- Generator ---
         GenProcessing     = "Traitement de {0}..."
@@ -407,6 +408,7 @@ $Script:Strings = @{
         FwCopied          = "+ {0} copied"
         FwFileMissing     = "! Missing file: {0}"
         FwNotFound        = "Firmware not found in cache: {0}"
+        FwUnknownModel    = "Unknown Flexy model: {0}"
 
         # --- Generator ---
         GenProcessing     = "Processing {0}..."
@@ -668,6 +670,7 @@ $Script:Strings = @{
         FwCopied          = "+ {0} copiado"
         FwFileMissing     = "! Archivo faltante: {0}"
         FwNotFound        = "Firmware no encontrado en caché: {0}"
+        FwUnknownModel    = "Modelo Flexy desconocido: {0}"
 
         # --- Generator ---
         GenProcessing     = "Procesando {0}..."
@@ -929,6 +932,7 @@ $Script:Strings = @{
         FwCopied          = "+ {0} copiato"
         FwFileMissing     = "! File mancante: {0}"
         FwNotFound        = "Firmware non trovato nella cache: {0}"
+        FwUnknownModel    = "Modello Flexy sconosciuto: {0}"
 
         # --- Generator ---
         GenProcessing     = "Elaborazione di {0}..."

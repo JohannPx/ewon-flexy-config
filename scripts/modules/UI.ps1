@@ -890,7 +890,7 @@ function Collect-StepState {
 function Build-FlexyModelCombo {
     $previous = (Get-AppState).FlexyModel
     $Script:ui_cbFlexyModel.Items.Clear()
-    foreach ($model in @("202", "205")) {
+    foreach ($model in (Get-FlexyModels)) {
         $item = New-Object System.Windows.Controls.ComboBoxItem
         $item.Content = T "FlexyModel$model"
         $item.Tag = $model
@@ -1044,8 +1044,10 @@ function Update-TargetFirmwareList {
         $Script:ui_cbTargetFw.Items.Add($item) | Out-Null
     }
 
+    # La liste est triee par version croissante : le dernier element est le
+    # firmware le plus recent, qui est le choix attendu par defaut.
     if ($Script:ui_cbTargetFw.Items.Count -gt 0) {
-        $Script:ui_cbTargetFw.SelectedIndex = 0
+        $Script:ui_cbTargetFw.SelectedIndex = $Script:ui_cbTargetFw.Items.Count - 1
     }
 }
 

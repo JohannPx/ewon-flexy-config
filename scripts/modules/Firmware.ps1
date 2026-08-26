@@ -9,14 +9,28 @@ function Get-FwProp {
     return $Default
 }
 
-# Maps the user-facing Flexy model to the HMS product code used in firmware URLs.
+# Modeles Flexy supportes, associes au code produit HMS present dans les noms de
+# fichiers firmware (er15-1s0p<pc>-ma.edfs) et dans le champ "pc" du manifest.
+# Source de verite unique : l'UI construit sa liste de modeles a partir de ces cles.
+$Script:FlexyProductCodes = [ordered]@{
+    "202" = 21
+    "205" = 24
+}
+
+# Retourne les modeles Flexy supportes, dans l'ordre d'affichage.
+function Get-FlexyModels {
+    return @($Script:FlexyProductCodes.Keys)
+}
+
+# Traduit le modele Flexy choisi par l'utilisateur en code produit HMS.
+# Echoue explicitement sur un modele inconnu : un repli silencieux ferait copier
+# sur la SD le firmware d'un autre modele.
 function Get-FlexyProductCode {
-    param([string]$FlexyModel)
-    switch ($FlexyModel) {
-        "202" { return 21 }
-        "205" { return 24 }
-        default { return 21 }
+    param([Parameter(Mandatory)][string]$FlexyModel)
+    if (-not $Script:FlexyProductCodes.Contains($FlexyModel)) {
+        throw ((T "FwUnknownModel") -f $FlexyModel)
     }
+    return $Script:FlexyProductCodes[$FlexyModel]
 }
 
 function Parse-FirmwareVersion {
