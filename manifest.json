@@ -37,6 +37,24 @@
           "pc": 24
         }
       ]
+    },
+    {
+      "version": "15.1s0",
+      "description": "Stable firmware for Flexy 202 and 205",
+      "files": [
+        {
+          "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er15-1s0p21-ma.edfs",
+          "cacheName": "ewonfwr_p21.edfs",
+          "sdName": "ewonfwr.edfs",
+          "pc": 21
+        },
+        {
+          "url": "https://hmsnetworks.blob.core.windows.net/nlw/docs/default-source/products/ewon/monitored/firmware/source/er15-1s0p24-ma.edfs",
+          "cacheName": "ewonfwr_p24.edfs",
+          "sdName": "ewonfwr.edfs",
+          "pc": 24
+        }
+      ]
     }
   ]
 }
