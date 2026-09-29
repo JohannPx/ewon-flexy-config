@@ -10,7 +10,7 @@ function Get-FwProp {
 }
 
 # Modeles Flexy supportes, associes au code produit HMS present dans les noms de
-# fichiers firmware (er15-1s0p<pc>-ma.edfs) et dans le champ "pc" du manifest.
+# fichiers firmware (er15_1s0p<pc>_ma.edfs) et dans le champ "pc" du manifest.
 # Source de verite unique : l'UI construit sa liste de modeles a partir de ces cles.
 $Script:FlexyProductCodes = [ordered]@{
     "202" = 21
@@ -43,6 +43,10 @@ function Parse-FirmwareVersion {
     }
     return $null
 }
+
+# Les paquets .edfs sont copies sur la SD sous le nom "ewonfwr.edf" (champ sdName du manifest) :
+# jusqu'a 15.0s4, le traitement SD ignore l'extension .edfs (reconnue seulement a partir de
+# 15.0s5, FWCPU3-457), alors qu'il installe bien un paquet chiffre nomme .edf.
 
 # Returns the subset of files[] that should be copied to the SD card,
 # given the current firmware (for migration .ebu) and Flexy model (for PC-specific .edfs).
@@ -237,6 +241,23 @@ function Get-CurrentFirmwareOptions {
         $options += ("{0}.x" -f $fw.Major)
     }
     return $options | Select-Object -Unique
+}
+
+# Motif des fichiers firmware traites par l'Ewon a la racine de la SD (ewonfwr.* et dewonfwr.*).
+$Script:SdFirmwareFilePattern = "*ewonfwr.*"
+
+# Supprime les firmwares laisses par une preparation precedente : sinon un ancien .ebus
+# ferait reinstaller sa version a chaque demarrage, et un ancien .edfs serait traite en plus
+# du firmware cible sur un Ewon en 15.0s5 ou plus.
+function Remove-FirmwareFromSD {
+    param(
+        [Parameter(Mandatory)][string]$SdRoot,
+        [scriptblock]$OnLog = { param($msg) }
+    )
+    foreach ($file in @(Get-ChildItem -Path $SdRoot -Filter $Script:SdFirmwareFilePattern -File -Force)) {
+        Remove-Item -LiteralPath $file.FullName -Force
+        & $OnLog ((T "FwRemoved") -f $file.Name)
+    }
 }
 
 function Copy-FirmwareToSD {

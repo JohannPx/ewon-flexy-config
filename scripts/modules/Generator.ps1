@@ -373,7 +373,8 @@ function Invoke-Generation {
         Remove-T2MFile -SdRoot $sdRoot
     }
 
-    # Copy firmware
+    # Copy firmware (stale firmware files are always removed first)
+    Remove-FirmwareFromSD -SdRoot $sdRoot -OnLog $OnLog
     if (-not $State.SkipFirmwareUpdate -and $State.TargetFirmware) {
         & $OnProgress 70 (T "GenFwCopy")
         Copy-FirmwareToSD -SdRoot $sdRoot -TargetFw $State.TargetFirmware `
