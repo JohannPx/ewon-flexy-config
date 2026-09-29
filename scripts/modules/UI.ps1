@@ -1001,7 +1001,7 @@ function Populate-FirmwareOptions {
 
     # Always try fetching the latest manifest from GitHub first; Get-Manifest
     # falls back to the local cache automatically when offline. This ensures
-    # newly published firmwares (e.g. 15.0s4) appear without the user having
+    # newly published firmwares (e.g. 15.1s0) appear without the user having
     # to navigate forward and back.
     $manifest = Get-Manifest -OnLog { param($msg) }
     if ($manifest) {
