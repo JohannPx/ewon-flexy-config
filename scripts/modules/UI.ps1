@@ -557,6 +557,7 @@ function Apply-UILanguage {
 
     # Step 0
     $Script:ui_txtModeTitle.Text = T "ModeTitle"
+    Show-ConnStatus
     $Script:ui_txtHwTitle.Text = T "HwTitle"
     $Script:ui_txtFlexyModelLabel.Text = T "FlexyModelLabel"
     Build-FlexyModelCombo
@@ -933,6 +934,20 @@ function Register-Step0Events {
     Invoke-ConnectivityCheck
 }
 
+# Last connectivity message, kept as a key so a language switch can re-render it.
+$Script:ConnStatus = $null
+
+function Set-ConnStatus {
+    param([string]$Key, [string]$Argument = "")
+    $Script:ConnStatus = @{ Key = $Key; Argument = $Argument }
+    Show-ConnStatus
+}
+
+function Show-ConnStatus {
+    if (-not $Script:ConnStatus) { return }
+    $Script:ui_txtConnStatus.Text = (T $Script:ConnStatus.Key) -f $Script:ConnStatus.Argument
+}
+
 function Invoke-ConnectivityCheck {
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(200)
@@ -940,7 +955,7 @@ function Invoke-ConnectivityCheck {
         param($s, $ev)
         $s.Stop()
 
-        $Script:ui_txtConnStatus.Text = T "ConnChecking"
+        Set-ConnStatus "ConnChecking"
         Update-WpfUI
 
         $hasInternet = Test-InternetConnectivity
@@ -950,7 +965,7 @@ function Invoke-ConnectivityCheck {
         if ($hasInternet) {
             $Script:ui_rbOnline.IsChecked = $true
             $Script:ui_brdConnStatus.Background = $brush.ConvertFrom("#D4EDDA")
-            $Script:ui_txtConnStatus.Text = T "ConnCaching"
+            Set-ConnStatus "ConnCaching"
             Update-WpfUI
 
             # Eagerly download manifest + templates (small, fast)
@@ -965,7 +980,7 @@ function Invoke-ConnectivityCheck {
                 }
             } catch {}
 
-            $Script:ui_txtConnStatus.Text = T "ConnOnlineOk"
+            Set-ConnStatus "ConnOnlineOk"
 
             # Download all firmwares in a background runspace (truly async, no UI freeze)
             $cachedManifest = (Get-AppState).Manifest
@@ -981,10 +996,10 @@ function Invoke-ConnectivityCheck {
                     if ($null -eq $st) { $sender.Stop(); return }
                     if ($st.Done) {
                         $sender.Stop()
-                        $Script:ui_txtConnStatus.Text = T "ConnOnlineOk"
+                        Set-ConnStatus "ConnOnlineOk"
                         Stop-BackgroundFirmwareCache
                     } else {
-                        $Script:ui_txtConnStatus.Text = (T "ConnCachingFw") -f $st.CurrentFw
+                        Set-ConnStatus "ConnCachingFw" $st.CurrentFw
                     }
                 })
                 $pollTimer.Start()
@@ -992,13 +1007,13 @@ function Invoke-ConnectivityCheck {
         } elseif ($hasCache) {
             $Script:ui_rbCache.IsChecked = $true
             $Script:ui_brdConnStatus.Background = $brush.ConvertFrom("#FFF3CD")
-            $Script:ui_txtConnStatus.Text = T "ConnCacheOk"
+            Set-ConnStatus "ConnCacheOk"
         } else {
             $Script:ui_rbOnline.IsEnabled = $false
             $Script:ui_rbCache.IsEnabled = $false
             $Script:ui_rbPreparation.IsEnabled = $false
             $Script:ui_brdConnStatus.Background = $brush.ConvertFrom("#F8D7DA")
-            $Script:ui_txtConnStatus.Text = T "ConnNoConnection"
+            Set-ConnStatus "ConnNoConnection"
             $Script:ui_btnNext.IsEnabled = $false
         }
     })
