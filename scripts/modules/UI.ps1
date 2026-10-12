@@ -100,48 +100,53 @@ $Script:MainXaml = @'
       <TabItem>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="5">
-            <!-- Language selector -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
-              <TextBlock x:Name="txtLangLabel" Text="Langue :" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
-              <Button x:Name="btnLangFR" Style="{StaticResource LangBtn}" Tag="FR" ToolTip="Français">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <Rectangle Grid.Column="0" Fill="#002395"/>
-                  <Rectangle Grid.Column="1" Fill="White"/>
-                  <Rectangle Grid.Column="2" Fill="#ED2939"/>
-                </Grid>
-              </Button>
-              <Button x:Name="btnLangEN" Style="{StaticResource LangBtn}" Tag="EN" ToolTip="English">
-                <Grid Background="#012169">
-                  <Rectangle Fill="White" Width="10" HorizontalAlignment="Center"/>
-                  <Rectangle Fill="White" Height="8" VerticalAlignment="Center"/>
-                  <Rectangle Fill="#CF142B" Width="5" HorizontalAlignment="Center"/>
-                  <Rectangle Fill="#CF142B" Height="4" VerticalAlignment="Center"/>
-                </Grid>
-              </Button>
-              <Button x:Name="btnLangES" Style="{StaticResource LangBtn}" Tag="ES" ToolTip="Español">
-                <Grid>
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/><RowDefinition Height="2*"/><RowDefinition Height="*"/>
-                  </Grid.RowDefinitions>
-                  <Rectangle Grid.Row="0" Fill="#AA151B"/>
-                  <Rectangle Grid.Row="1" Fill="#F1BF00"/>
-                  <Rectangle Grid.Row="2" Fill="#AA151B"/>
-                </Grid>
-              </Button>
-              <Button x:Name="btnLangIT" Style="{StaticResource LangBtn}" Tag="IT" ToolTip="Italiano">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <Rectangle Grid.Column="0" Fill="#009246"/>
-                  <Rectangle Grid.Column="1" Fill="White"/>
-                  <Rectangle Grid.Column="2" Fill="#CE2B37"/>
-                </Grid>
-              </Button>
-            </StackPanel>
+            <Grid Margin="0,0,0,8">
+              <!-- Network diagnostic (independent from the SD wizard) -->
+              <Button x:Name="btnNetworkDiag" Content="Diagnostic reseau" HorizontalAlignment="Left"
+                      Height="30" Padding="10,0" Cursor="Hand"/>
+              <!-- Language selector -->
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBlock x:Name="txtLangLabel" Text="Langue :" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
+                <Button x:Name="btnLangFR" Style="{StaticResource LangBtn}" Tag="FR" ToolTip="Français">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Grid.Column="0" Fill="#002395"/>
+                    <Rectangle Grid.Column="1" Fill="White"/>
+                    <Rectangle Grid.Column="2" Fill="#ED2939"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="btnLangEN" Style="{StaticResource LangBtn}" Tag="EN" ToolTip="English">
+                  <Grid Background="#012169">
+                    <Rectangle Fill="White" Width="10" HorizontalAlignment="Center"/>
+                    <Rectangle Fill="White" Height="8" VerticalAlignment="Center"/>
+                    <Rectangle Fill="#CF142B" Width="5" HorizontalAlignment="Center"/>
+                    <Rectangle Fill="#CF142B" Height="4" VerticalAlignment="Center"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="btnLangES" Style="{StaticResource LangBtn}" Tag="ES" ToolTip="Español">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="*"/><RowDefinition Height="2*"/><RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Rectangle Grid.Row="0" Fill="#AA151B"/>
+                    <Rectangle Grid.Row="1" Fill="#F1BF00"/>
+                    <Rectangle Grid.Row="2" Fill="#AA151B"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="btnLangIT" Style="{StaticResource LangBtn}" Tag="IT" ToolTip="Italiano">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Grid.Column="0" Fill="#009246"/>
+                    <Rectangle Grid.Column="1" Fill="White"/>
+                    <Rectangle Grid.Column="2" Fill="#CE2B37"/>
+                  </Grid>
+                </Button>
+              </StackPanel>
+            </Grid>
 
             <TextBlock x:Name="txtModeTitle" Text="Mode et Firmware" Style="{StaticResource StepHeader}"/>
 
@@ -435,7 +440,7 @@ function Initialize-MainWindow {
     # Bind all named elements to script variables
     $elementNames = @(
         "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs",
-        "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT",
+        "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT","btnNetworkDiag",
         "txtModeTitle","rbOnline","rbCache","rbPreparation","brdConnStatus","txtConnStatus",
         "txtHwTitle","txtFlexyModelLabel","cbFlexyModel",
         "txtFwTitle","txtFwHelp","txtFwCurrentLabel","txtFwTargetLabel","cbCurrentFw","cbTargetFw","chkSkipFirmware",
@@ -548,9 +553,11 @@ function Apply-UILanguage {
 
     # Language label
     $Script:ui_txtLangLabel.Text = T "LangLabel"
+    $Script:ui_btnNetworkDiag.Content = T "BtnNetworkDiag"
 
     # Step 0
     $Script:ui_txtModeTitle.Text = T "ModeTitle"
+    Show-ConnStatus
     $Script:ui_txtHwTitle.Text = T "HwTitle"
     $Script:ui_txtFlexyModelLabel.Text = T "FlexyModelLabel"
     Build-FlexyModelCombo
@@ -914,6 +921,10 @@ function Register-Step0Events {
         Update-TargetFirmwareList
     })
 
+    $Script:ui_btnNetworkDiag.Add_Click({
+        Show-NetworkDiagnosticWindow -Owner $Script:Window
+    })
+
     $Script:ui_cbFlexyModel.Add_SelectionChanged({
         $sel = $Script:ui_cbFlexyModel.SelectedItem
         if ($sel -and $sel.Tag) { Set-AppStateValue -Key "FlexyModel" -Value $sel.Tag }
@@ -923,6 +934,20 @@ function Register-Step0Events {
     Invoke-ConnectivityCheck
 }
 
+# Last connectivity message, kept as a key so a language switch can re-render it.
+$Script:ConnStatus = $null
+
+function Set-ConnStatus {
+    param([string]$Key, [string]$Argument = "")
+    $Script:ConnStatus = @{ Key = $Key; Argument = $Argument }
+    Show-ConnStatus
+}
+
+function Show-ConnStatus {
+    if (-not $Script:ConnStatus) { return }
+    $Script:ui_txtConnStatus.Text = (T $Script:ConnStatus.Key) -f $Script:ConnStatus.Argument
+}
+
 function Invoke-ConnectivityCheck {
     $timer = New-Object System.Windows.Threading.DispatcherTimer
     $timer.Interval = [TimeSpan]::FromMilliseconds(200)
@@ -930,7 +955,7 @@ function Invoke-ConnectivityCheck {
         param($s, $ev)
         $s.Stop()
 
-        $Script:ui_txtConnStatus.Text = T "ConnChecking"
+        Set-ConnStatus "ConnChecking"
         Update-WpfUI
 
         $hasInternet = Test-InternetConnectivity
@@ -940,7 +965,7 @@ function Invoke-ConnectivityCheck {
         if ($hasInternet) {
             $Script:ui_rbOnline.IsChecked = $true
             $Script:ui_brdConnStatus.Background = $brush.ConvertFrom("#D4EDDA")
-            $Script:ui_txtConnStatus.Text = T "ConnCaching"
+            Set-ConnStatus "ConnCaching"
             Update-WpfUI
 
             # Eagerly download manifest + templates (small, fast)
@@ -955,7 +980,7 @@ function Invoke-ConnectivityCheck {
                 }
             } catch {}
 
-            $Script:ui_txtConnStatus.Text = T "ConnOnlineOk"
+            Set-ConnStatus "ConnOnlineOk"
 
             # Download all firmwares in a background runspace (truly async, no UI freeze)
             $cachedManifest = (Get-AppState).Manifest
@@ -971,10 +996,10 @@ function Invoke-ConnectivityCheck {
                     if ($null -eq $st) { $sender.Stop(); return }
                     if ($st.Done) {
                         $sender.Stop()
-                        $Script:ui_txtConnStatus.Text = T "ConnOnlineOk"
+                        Set-ConnStatus "ConnOnlineOk"
                         Stop-BackgroundFirmwareCache
                     } else {
-                        $Script:ui_txtConnStatus.Text = (T "ConnCachingFw") -f $st.CurrentFw
+                        Set-ConnStatus "ConnCachingFw" $st.CurrentFw
                     }
                 })
                 $pollTimer.Start()
@@ -982,13 +1007,13 @@ function Invoke-ConnectivityCheck {
         } elseif ($hasCache) {
             $Script:ui_rbCache.IsChecked = $true
             $Script:ui_brdConnStatus.Background = $brush.ConvertFrom("#FFF3CD")
-            $Script:ui_txtConnStatus.Text = T "ConnCacheOk"
+            Set-ConnStatus "ConnCacheOk"
         } else {
             $Script:ui_rbOnline.IsEnabled = $false
             $Script:ui_rbCache.IsEnabled = $false
             $Script:ui_rbPreparation.IsEnabled = $false
             $Script:ui_brdConnStatus.Background = $brush.ConvertFrom("#F8D7DA")
-            $Script:ui_txtConnStatus.Text = T "ConnNoConnection"
+            Set-ConnStatus "ConnNoConnection"
             $Script:ui_btnNext.IsEnabled = $false
         }
     })
@@ -1611,11 +1636,7 @@ function Start-PreparationMode {
 
 function Add-LogEntry {
     param([string]$Message)
-    $ts = (Get-Date).ToString("HH:mm:ss")
-    $text = "[$ts] $Message"
-    $idx = $Script:ui_lbLog.Items.Add($text)
-    $Script:ui_lbLog.ScrollIntoView($Script:ui_lbLog.Items[$idx])
-    Update-WpfUI
+    Add-ListBoxLogEntry -ListBox $Script:ui_lbLog -Message $Message
 }
 
 function Update-WpfUI {

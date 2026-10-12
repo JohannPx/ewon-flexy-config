@@ -77,7 +77,13 @@ jobs:
             ./scripts/modules/Network.ps1 \
             ./scripts/modules/Firmware.ps1 \
             ./scripts/modules/Generator.ps1 \
+            ./scripts/modules/EwonClient.ps1 \
+            ./scripts/modules/PcapAnalyzer.ps1 \
+            ./scripts/modules/NetworkDiagnostic.ps1 \
+            ./scripts/modules/DiagnosticTests.ps1 \
+            ./scripts/modules/DiagnosticReport.ps1 \
             ./scripts/modules/UIHelpers.ps1 \
+            ./scripts/modules/DiagnosticUI.ps1 \
             ./scripts/modules/UI.ps1 \
             ./scripts/Prepare_Ewon_SD.ps1; do
             LC_ALL=C sed '1s/^\xEF\xBB\xBF//' "$f" >> ./PrepareEwonSD_latest.ps1

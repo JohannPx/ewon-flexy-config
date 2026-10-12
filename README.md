@@ -132,6 +132,28 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 | **CACHE** | Utilise les ressources déjà téléchargées | ❌ Non requise |
 | **PREPARATION** | Télécharge tout pour usage ultérieur offline | ✅ Requise (une fois) |
 
+### 🩺 Diagnostic réseau
+
+Bouton **Diagnostic réseau** sur le premier écran, indépendant de la préparation SD. Il cible un Ewon déjà en service, joint par son **adresse IP LAN** (utilisateur et mot de passe de l'Ewon) :
+
+- **Connexion** : lecture du modèle, du numéro de série, du firmware (12.2s0 minimum) et du type de WAN (Ethernet, 4G ou WiFi)
+- **Test lancé par l'Ewon pendant la capture** de son trafic (tcpdump de l'Ewon, 10 à 120 s) :
+
+| Test | Paramètres | Ce que l'Ewon exécute |
+|------|-----------|------------------------|
+| Capture seule | — | rien : capture et synthèse des conversations |
+| Connexion TCP | serveur, port | `OPEN "tcp:…"` (le « ping » de l'Ewon) |
+| SFTP | serveur, port, utilisateur, mot de passe (≥ 8 car., sans `@` ni `:`), dossier distant | `PUTSFTP` d'un petit fichier `ewondiag_<n° de série>.txt` |
+| HTTPS | URL, identifiants Basic facultatifs | `REQUESTHTTPX` en GET |
+
+- **Rapport de diagnostic** en clair, sans Wireshark : résultat renvoyé par l'Ewon (code d'erreur, code HTTP, journal SFTP), résolution DNS, connexion TCP (établie, refusée, sans réponse), négociation **SSH** (bannières, algorithmes proposés de part et d'autre et algorithmes communs, déconnexion, qui coupe et à quelle étape) et **TLS** (version proposée et acceptée, nom de serveur, alertes). Le rapport signale aussi que l'Ewon ouvre toujours **deux connexions SSH par transfert** et ferme lui-même la première : vu du serveur, ce n'est pas un échec.
+- L'interface capturée est déduite du modèle comme le fait l'outil HMS `eWON_NetworkTrafficTracer` (`eth0`/`eth1` sur Flexy 202, VLAN `eth0.10`/`eth0.20` sur les modèles à switch, `ppp0` en 4G, `wlan0` en WiFi, `any` pour toutes)
+- La capture peut être enregistrée en `.pcap` ; elle est **supprimée de l'Ewon** dès sa récupération, ainsi que le minuteur, les variables et les fichiers de test
+
+> Pendant la capture, le serveur web de l'Ewon ne répond plus : le test est donc programmé juste avant, par un minuteur BASIC qui le déclenche 3 s plus tard. Les secrets passent par des variables `ewondiag…$` vidées après le test, jamais par le texte de la commande. Le fichier SFTP de test reste sur le serveur.
+>
+> Le test utilise le **minuteur BASIC n° 4** et les **numéros de fichier 7 et 8** de l'Ewon : un programme client qui s'en sert verrait son `ONTIMER 4` remplacé puis désactivé, et ses fichiers 7/8 fermés. Le programme livré par cette application n'en utilise aucun.
+
 ---
 
 ## 📋 Prérequis système
@@ -178,7 +200,13 @@ ewon-flexy-config/
 │       ├── Network.ps1              # Téléchargements, cache, TLS
 │       ├── Firmware.ps1             # Versions firmware, compatibilité, cache async
 │       ├── Generator.ps1            # Templates, tar, T2M, procédure
+│       ├── EwonClient.ps1           # Accès HTTP à l'Ewon par son LAN (exports, BASIC, TCPDump)
+│       ├── PcapAnalyzer.ps1         # Décodage pcap DNS/TCP/SSH/TLS (C# compilé par Add-Type)
+│       ├── NetworkDiagnostic.ps1    # Profil réseau de l'Ewon, choix d'interface, capture
+│       ├── DiagnosticTests.ps1      # Tests TCP/SFTP/HTTPS lancés par l'Ewon, lecture du résultat
+│       ├── DiagnosticReport.ps1     # Règles du diagnostic (constats à partir des faits décodés)
 │       ├── UIHelpers.ps1            # Création dynamique de champs WPF
+│       ├── DiagnosticUI.ps1         # Fenêtre de diagnostic réseau
 │       └── UI.ps1                   # XAML wizard, événements, drapeaux
 ├── 🔧 wrapper/                      # Wrapper C# .NET 8
 │   ├── EwonFlexySdPrep.csproj      # Projet (self-contained, single-file)
@@ -199,7 +227,7 @@ ewon-flexy-config/
 
 Le workflow GitHub Actions s'exécute sur push vers `main` (donc à chaque merge de PR) en 3 jobs :
 
-1. **Build** (Ubuntu) : Concatène les 9 modules PowerShell en un fichier unique `PrepareEwonSD_latest.ps1` avec BOM UTF-8
+1. **Build** (Ubuntu) : Concatène les 15 modules PowerShell en un fichier unique `PrepareEwonSD_latest.ps1` avec BOM UTF-8
 2. **Package** (Windows) : Génère l'icône, compile le wrapper C# via `dotnet publish` → `EwonFlexySdPrep.exe` (self-contained, single-file, trimmed)
 3. **Release** : Publie une release GitHub stable (tag `vX.Y.Z`) avec les 2 assets (.exe + .ps1)
 
