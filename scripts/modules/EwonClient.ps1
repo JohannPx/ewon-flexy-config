@@ -16,7 +16,9 @@ $Script:EwonErrorKind = @{
 }
 
 $Script:EwonExport = @{
-    Status = '$dtES$ftT'
+    Status           = '$dtES$ftT'
+    ScheduledActions = '$dtSS$ftT'
+    RealtimeLog      = '$dtRE$ftT'
 }
 
 function New-EwonException {
@@ -69,7 +71,8 @@ function Invoke-EwonRequest {
         try { $statusCode = [int]$httpResponse.StatusCode } finally { $httpResponse.Close() }
         switch ($statusCode) {
             401     { throw (New-EwonException -Kind $Script:EwonErrorKind.AuthRejected) }
-            404     { throw (New-EwonException -Kind $Script:EwonErrorKind.NotFound -Detail $PathAndQuery) }
+            # Sans la requête : pour ExeScriptForm, elle contient la commande, donc parfois un secret.
+            404     { throw (New-EwonException -Kind $Script:EwonErrorKind.NotFound -Detail $PathAndQuery.Split("?")[0]) }
             default { throw (New-EwonException -Kind $Script:EwonErrorKind.HttpError -Detail $webError.Message) }
         }
     }

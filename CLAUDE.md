@@ -7,7 +7,7 @@ Voir ce fichier pour la liste des commandes auto-approuvées (git, dotnet, power
 
 ## Architecture du projet
 
-- **PowerShell WPF** : Application principale (12 modules + entry point) — wizard 8 étapes + fenêtre de diagnostic réseau, multilingue FR/EN/ES/IT
+- **PowerShell WPF** : Application principale (15 modules + entry point) — wizard 8 étapes + fenêtre de diagnostic réseau, multilingue FR/EN/ES/IT
 - **C# .NET 8 wrapper** (`wrapper/`) : Exe auto-installable avec auto-update GitHub Releases
 - **CI/CD** : GitHub Actions — 3 jobs (build .ps1 → package .exe → release)
 
@@ -30,7 +30,7 @@ Source de vérité : `manifest.json` champ `version`
 | Fichier | Rôle |
 |---------|------|
 | `scripts/Prepare_Ewon_SD.ps1` | Entry point PowerShell |
-| `scripts/modules/*.ps1` | 12 modules (AppState, Localization, Validation, Config, Network, Firmware, Generator, EwonClient, NetworkDiagnostic, UIHelpers, DiagnosticUI, UI) |
+| `scripts/modules/*.ps1` | 15 modules (AppState, Localization, Validation, Config, Network, Firmware, Generator, EwonClient, PcapAnalyzer, NetworkDiagnostic, DiagnosticTests, DiagnosticReport, UIHelpers, DiagnosticUI, UI) |
 | `wrapper/Program.cs` | Wrapper C# (install, update, launch) |
 | `wrapper/EwonFlexySdPrep.csproj` | Projet .NET 8 |
 | `scripts/GenerateIcon.ps1` | Génération icône .ico pour le build |

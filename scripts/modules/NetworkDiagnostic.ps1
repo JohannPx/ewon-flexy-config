@@ -16,6 +16,7 @@ $Script:ModelsWithoutSwitch            = @("101", "102", "103", "201", "202", "2
 # En-têtes pcap acceptés : microsecondes ou nanosecondes, dans les deux boutismes.
 $Script:PcapMagicHeaders               = @("D4-C3-B2-A1", "A1-B2-C3-D4", "4D-3C-B2-A1", "A1-B2-3C-4D")
 $Script:PcapMagicLength                = 4
+$Script:PcapGlobalHeaderLength         = 24
 
 $Script:CaptureSide = @{
     Lan = "Lan"
@@ -116,7 +117,7 @@ function Get-TcpDumpMinFirmwareLabel {
     return "$($Script:TcpDumpMinFirmware)s0"
 }
 
-function Start-EwonCapture {
+function New-EwonCapture {
     param(
         [Parameter(Mandatory)][hashtable]$Session,
         [Parameter(Mandatory)][string]$Interface,
@@ -124,13 +125,18 @@ function Start-EwonCapture {
     )
     # Le serveur web de l'Ewon reste bloqué pendant toute la capture : l'attente se fait dans un runspace
     # pour ne pas figer l'interface, qui suit l'avancement par la table partagée State.
+    # Préparé à part (runspace ouvert) pour que Start-EwonCapture n'ait plus qu'à envoyer la requête :
+    # un test programmé juste avant ne doit pas partir avant tcpdump.
     $state = [hashtable]::Synchronized(@{ Done = $false; Result = $null; Error = $null })
 
     $sessionState = [System.Management.Automation.Runspaces.InitialSessionState]::CreateDefault()
     $sessionState.Commands.Add([System.Management.Automation.Runspaces.SessionStateFunctionEntry]::new(
         "Invoke-EwonTcpDump", ${function:Invoke-EwonTcpDump}.ToString()))
+    $runspace = [runspacefactory]::CreateRunspace($sessionState)
+    $runspace.Open()
 
-    $shell = [powershell]::Create($sessionState)
+    $shell = [powershell]::Create()
+    $shell.Runspace = $runspace
     $null = $shell.AddScript({
         param($Session, $Interface, $DurationSeconds, $OutputPath, $ReplyMarginSeconds, $State)
         try {
@@ -146,17 +152,25 @@ function Start-EwonCapture {
 
     return @{
         Shell           = $shell
-        Handle          = $shell.BeginInvoke()
+        Handle          = $null
         State           = $state
         Interface       = $Interface
         DurationSeconds = $DurationSeconds
-        StartedAt       = Get-Date
+        StartedAt       = $null
     }
+}
+
+function Start-EwonCapture {
+    param([Parameter(Mandatory)][hashtable]$Capture)
+    $Capture.Handle = $Capture.Shell.BeginInvoke()
+    $Capture.StartedAt = Get-Date
 }
 
 function Stop-EwonCapture {
     param([Parameter(Mandatory)][hashtable]$Capture)
-    try { $Capture.Shell.EndInvoke($Capture.Handle) } catch {}
+    if ($Capture.Handle) {
+        try { $Capture.Shell.EndInvoke($Capture.Handle) } catch {}
+    }
     $Capture.Shell.Runspace.Close()
     $Capture.Shell.Dispose()
 }
@@ -178,7 +192,7 @@ function Complete-EwonCapture {
     }
 
     $bytes = Receive-EwonFile -Session $Session -Path $Script:CaptureOutputPath
-    if ($bytes.Length -lt $Script:PcapMagicLength -or [BitConverter]::ToString($bytes, 0, $Script:PcapMagicLength) -notin $Script:PcapMagicHeaders) {
+    if ($bytes.Length -lt $Script:PcapGlobalHeaderLength -or [BitConverter]::ToString($bytes, 0, $Script:PcapMagicLength) -notin $Script:PcapMagicHeaders) {
         throw (New-EwonException -Kind $Script:DiagnosticErrorKind.CaptureInvalid)
     }
     return , $bytes
@@ -186,7 +200,7 @@ function Complete-EwonCapture {
 
 function Clear-EwonCapture {
     param([Parameter(Mandatory)][hashtable]$Session)
-    # À n'appeler qu'une fois la capture enregistrée sur le poste : l'Ewon en garde sinon la seule copie.
+    # À n'appeler qu'une fois la capture rapatriée sur le poste : l'Ewon en garde sinon la seule copie.
     try {
         Remove-EwonFile -Session $Session -Path $Script:CaptureOutputPath
         return $true

@@ -78,7 +78,10 @@ jobs:
             ./scripts/modules/Firmware.ps1 \
             ./scripts/modules/Generator.ps1 \
             ./scripts/modules/EwonClient.ps1 \
+            ./scripts/modules/PcapAnalyzer.ps1 \
             ./scripts/modules/NetworkDiagnostic.ps1 \
+            ./scripts/modules/DiagnosticTests.ps1 \
+            ./scripts/modules/DiagnosticReport.ps1 \
             ./scripts/modules/UIHelpers.ps1 \
             ./scripts/modules/DiagnosticUI.ps1 \
             ./scripts/modules/UI.ps1 \
