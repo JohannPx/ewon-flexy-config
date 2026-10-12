@@ -318,6 +318,17 @@ function Get-RemovableDrives {
     return $drives
 }
 
+function Add-ListBoxLogEntry {
+    param(
+        [System.Windows.Controls.ListBox]$ListBox,
+        [string]$Message
+    )
+    $ts = (Get-Date).ToString("HH:mm:ss")
+    $idx = $ListBox.Items.Add("[$ts] $Message")
+    $ListBox.ScrollIntoView($ListBox.Items[$idx])
+    Update-WpfUI
+}
+
 function New-SectionHeader {
     param([string]$Title)
 

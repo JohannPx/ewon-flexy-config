@@ -45,7 +45,10 @@ if (Test-Path $modulesDir) {
         "Network.ps1"
         "Firmware.ps1"
         "Generator.ps1"
+        "EwonClient.ps1"
+        "NetworkDiagnostic.ps1"
         "UIHelpers.ps1"
+        "DiagnosticUI.ps1"
         "UI.ps1"
     )
     foreach ($mod in $moduleOrder) {

@@ -132,6 +132,16 @@ Le script génère automatiquement un `backup.tar` personnalisé basé sur :
 | **CACHE** | Utilise les ressources déjà téléchargées | ❌ Non requise |
 | **PREPARATION** | Télécharge tout pour usage ultérieur offline | ✅ Requise (une fois) |
 
+### 🩺 Diagnostic réseau
+
+Bouton **Diagnostic réseau** sur le premier écran, indépendant de la préparation SD. Il cible un Ewon déjà en service, joint par son **adresse IP LAN** (utilisateur et mot de passe de l'Ewon) :
+
+- **Connexion** : lecture du modèle, du numéro de série, du firmware (12.2s0 minimum) et du type de WAN (Ethernet, 4G ou WiFi)
+- **Capture du trafic** par le tcpdump de l'Ewon, sur le LAN, le WAN ou toutes les interfaces, pendant 10 à 120 s. L'interface réelle est déduite du modèle comme le fait l'outil HMS `eWON_NetworkTrafficTracer` (`eth0`/`eth1` sur Flexy 202, VLAN `eth0.10`/`eth0.20` sur les modèles à switch, `ppp0` en 4G, `wlan0` en WiFi)
+- La capture est enregistrée en `.pcap` sur le poste puis **supprimée de l'Ewon**
+
+> Pendant la capture, le serveur web de l'Ewon ne répond plus : c'est normal, il reprend à la fin.
+
 ---
 
 ## 📋 Prérequis système
@@ -178,7 +188,10 @@ ewon-flexy-config/
 │       ├── Network.ps1              # Téléchargements, cache, TLS
 │       ├── Firmware.ps1             # Versions firmware, compatibilité, cache async
 │       ├── Generator.ps1            # Templates, tar, T2M, procédure
+│       ├── EwonClient.ps1           # Accès HTTP à l'Ewon par son LAN (exports, BASIC, TCPDump)
+│       ├── NetworkDiagnostic.ps1    # Profil réseau de l'Ewon, choix d'interface, capture
 │       ├── UIHelpers.ps1            # Création dynamique de champs WPF
+│       ├── DiagnosticUI.ps1         # Fenêtre de diagnostic réseau
 │       └── UI.ps1                   # XAML wizard, événements, drapeaux
 ├── 🔧 wrapper/                      # Wrapper C# .NET 8
 │   ├── EwonFlexySdPrep.csproj      # Projet (self-contained, single-file)
@@ -199,7 +212,7 @@ ewon-flexy-config/
 
 Le workflow GitHub Actions s'exécute sur push vers `main` (donc à chaque merge de PR) en 3 jobs :
 
-1. **Build** (Ubuntu) : Concatène les 9 modules PowerShell en un fichier unique `PrepareEwonSD_latest.ps1` avec BOM UTF-8
+1. **Build** (Ubuntu) : Concatène les 12 modules PowerShell en un fichier unique `PrepareEwonSD_latest.ps1` avec BOM UTF-8
 2. **Package** (Windows) : Génère l'icône, compile le wrapper C# via `dotnet publish` → `EwonFlexySdPrep.exe` (self-contained, single-file, trimmed)
 3. **Release** : Publie une release GitHub stable (tag `vX.Y.Z`) avec les 2 assets (.exe + .ps1)
 

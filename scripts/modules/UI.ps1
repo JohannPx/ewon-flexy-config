@@ -100,48 +100,53 @@ $Script:MainXaml = @'
       <TabItem>
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="5">
-            <!-- Language selector -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,0,0,8">
-              <TextBlock x:Name="txtLangLabel" Text="Langue :" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
-              <Button x:Name="btnLangFR" Style="{StaticResource LangBtn}" Tag="FR" ToolTip="Français">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <Rectangle Grid.Column="0" Fill="#002395"/>
-                  <Rectangle Grid.Column="1" Fill="White"/>
-                  <Rectangle Grid.Column="2" Fill="#ED2939"/>
-                </Grid>
-              </Button>
-              <Button x:Name="btnLangEN" Style="{StaticResource LangBtn}" Tag="EN" ToolTip="English">
-                <Grid Background="#012169">
-                  <Rectangle Fill="White" Width="10" HorizontalAlignment="Center"/>
-                  <Rectangle Fill="White" Height="8" VerticalAlignment="Center"/>
-                  <Rectangle Fill="#CF142B" Width="5" HorizontalAlignment="Center"/>
-                  <Rectangle Fill="#CF142B" Height="4" VerticalAlignment="Center"/>
-                </Grid>
-              </Button>
-              <Button x:Name="btnLangES" Style="{StaticResource LangBtn}" Tag="ES" ToolTip="Español">
-                <Grid>
-                  <Grid.RowDefinitions>
-                    <RowDefinition Height="*"/><RowDefinition Height="2*"/><RowDefinition Height="*"/>
-                  </Grid.RowDefinitions>
-                  <Rectangle Grid.Row="0" Fill="#AA151B"/>
-                  <Rectangle Grid.Row="1" Fill="#F1BF00"/>
-                  <Rectangle Grid.Row="2" Fill="#AA151B"/>
-                </Grid>
-              </Button>
-              <Button x:Name="btnLangIT" Style="{StaticResource LangBtn}" Tag="IT" ToolTip="Italiano">
-                <Grid>
-                  <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
-                  </Grid.ColumnDefinitions>
-                  <Rectangle Grid.Column="0" Fill="#009246"/>
-                  <Rectangle Grid.Column="1" Fill="White"/>
-                  <Rectangle Grid.Column="2" Fill="#CE2B37"/>
-                </Grid>
-              </Button>
-            </StackPanel>
+            <Grid Margin="0,0,0,8">
+              <!-- Network diagnostic (independent from the SD wizard) -->
+              <Button x:Name="btnNetworkDiag" Content="Diagnostic reseau" HorizontalAlignment="Left"
+                      Height="30" Padding="10,0" Cursor="Hand"/>
+              <!-- Language selector -->
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                <TextBlock x:Name="txtLangLabel" Text="Langue :" VerticalAlignment="Center" Margin="0,0,8,0" FontSize="11"/>
+                <Button x:Name="btnLangFR" Style="{StaticResource LangBtn}" Tag="FR" ToolTip="Français">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Grid.Column="0" Fill="#002395"/>
+                    <Rectangle Grid.Column="1" Fill="White"/>
+                    <Rectangle Grid.Column="2" Fill="#ED2939"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="btnLangEN" Style="{StaticResource LangBtn}" Tag="EN" ToolTip="English">
+                  <Grid Background="#012169">
+                    <Rectangle Fill="White" Width="10" HorizontalAlignment="Center"/>
+                    <Rectangle Fill="White" Height="8" VerticalAlignment="Center"/>
+                    <Rectangle Fill="#CF142B" Width="5" HorizontalAlignment="Center"/>
+                    <Rectangle Fill="#CF142B" Height="4" VerticalAlignment="Center"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="btnLangES" Style="{StaticResource LangBtn}" Tag="ES" ToolTip="Español">
+                  <Grid>
+                    <Grid.RowDefinitions>
+                      <RowDefinition Height="*"/><RowDefinition Height="2*"/><RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+                    <Rectangle Grid.Row="0" Fill="#AA151B"/>
+                    <Rectangle Grid.Row="1" Fill="#F1BF00"/>
+                    <Rectangle Grid.Row="2" Fill="#AA151B"/>
+                  </Grid>
+                </Button>
+                <Button x:Name="btnLangIT" Style="{StaticResource LangBtn}" Tag="IT" ToolTip="Italiano">
+                  <Grid>
+                    <Grid.ColumnDefinitions>
+                      <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <Rectangle Grid.Column="0" Fill="#009246"/>
+                    <Rectangle Grid.Column="1" Fill="White"/>
+                    <Rectangle Grid.Column="2" Fill="#CE2B37"/>
+                  </Grid>
+                </Button>
+              </StackPanel>
+            </Grid>
 
             <TextBlock x:Name="txtModeTitle" Text="Mode et Firmware" Style="{StaticResource StepHeader}"/>
 
@@ -435,7 +440,7 @@ function Initialize-MainWindow {
     # Bind all named elements to script variables
     $elementNames = @(
         "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs",
-        "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT",
+        "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT","btnNetworkDiag",
         "txtModeTitle","rbOnline","rbCache","rbPreparation","brdConnStatus","txtConnStatus",
         "txtHwTitle","txtFlexyModelLabel","cbFlexyModel",
         "txtFwTitle","txtFwHelp","txtFwCurrentLabel","txtFwTargetLabel","cbCurrentFw","cbTargetFw","chkSkipFirmware",
@@ -548,6 +553,7 @@ function Apply-UILanguage {
 
     # Language label
     $Script:ui_txtLangLabel.Text = T "LangLabel"
+    $Script:ui_btnNetworkDiag.Content = T "BtnNetworkDiag"
 
     # Step 0
     $Script:ui_txtModeTitle.Text = T "ModeTitle"
@@ -912,6 +918,10 @@ function Register-Step0Events {
 
     $Script:ui_cbCurrentFw.Add_SelectionChanged({
         Update-TargetFirmwareList
+    })
+
+    $Script:ui_btnNetworkDiag.Add_Click({
+        Show-NetworkDiagnosticWindow -Owner $Script:Window
     })
 
     $Script:ui_cbFlexyModel.Add_SelectionChanged({
@@ -1611,11 +1621,7 @@ function Start-PreparationMode {
 
 function Add-LogEntry {
     param([string]$Message)
-    $ts = (Get-Date).ToString("HH:mm:ss")
-    $text = "[$ts] $Message"
-    $idx = $Script:ui_lbLog.Items.Add($text)
-    $Script:ui_lbLog.ScrollIntoView($Script:ui_lbLog.Items[$idx])
-    Update-WpfUI
+    Add-ListBoxLogEntry -ListBox $Script:ui_lbLog -Message $Message
 }
 
 function Update-WpfUI {
