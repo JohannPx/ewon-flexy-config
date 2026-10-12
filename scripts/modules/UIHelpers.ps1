@@ -1,5 +1,12 @@
 # UIHelpers.ps1 - Dynamic WPF field creation and validation indicators
 
+# Confirmation row of the admin password, handed from New-ParamFieldRow's switch to its result.
+# Declared up front: under StrictMode, reading them before the first admin password row would throw.
+$Script:ConfirmGridRef  = $null
+$Script:ConfirmPwBox    = $null
+$Script:ConfirmValIcon  = $null
+$Script:ConfirmLabelRef = $null
+
 function Update-ValidationIcon {
     param(
         [System.Windows.Controls.TextBlock]$Icon,
