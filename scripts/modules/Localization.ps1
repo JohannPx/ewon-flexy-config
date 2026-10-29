@@ -267,7 +267,7 @@ $Script:Strings = @{
         Proc_ConclusionFw = "Votre Ewon Flexy est maintenant configuré et à jour."
         Proc_CheckTitle   = "VÉRIFICATION DE LA CONFIGURATION"
         Proc_Check_1      = "- Dans l'interface web de l'Ewon (ou eBuddy), son nom doit être « {0} »"
-        Proc_Check_2      = "- Sinon l'Ewon a rejeté sans message le nom, le NTP, le programme et le mot de passe (seule la configuration réseau est appliquée) : en firmware 15.x, cause constatée = mot de passe administrateur jugé trop faible (11 caractères sans chiffre refusé, 12 caractères avec chiffres accepté)"
+        Proc_Check_2      = "- Sinon, la configuration n'a pas été entièrement appliquée (nom, NTP, programme, mot de passe) : réinsérez la carte puis vérifiez à nouveau"
 
         # --- Network module ---
         NetManifestRecover = "Récupération du manifest..."
@@ -664,7 +664,7 @@ $Script:Strings = @{
         Proc_ConclusionFw = "Your Ewon Flexy is now configured and up to date."
         Proc_CheckTitle   = "CONFIGURATION CHECK"
         Proc_Check_1      = "- In the Ewon web interface (or eBuddy), its name must be '{0}'"
-        Proc_Check_2      = "- Otherwise the Ewon silently rejected the name, NTP, program and password (only the network configuration is applied): on firmware 15.x, observed cause = administrator password deemed too weak (11 characters without digit rejected, 12 characters with digits accepted)"
+        Proc_Check_2      = "- Otherwise, the configuration was not fully applied (name, NTP, program, password): re-insert the card and check again"
 
         # --- Network module ---
         NetManifestRecover = "Retrieving manifest..."
@@ -1061,7 +1061,7 @@ $Script:Strings = @{
         Proc_ConclusionFw = "Su Ewon Flexy está ahora configurado y actualizado."
         Proc_CheckTitle   = "VERIFICACIÓN DE LA CONFIGURACIÓN"
         Proc_Check_1      = "- En la interfaz web del Ewon (o eBuddy), su nombre debe ser «{0}»"
-        Proc_Check_2      = "- Si no, el Ewon rechazó sin aviso el nombre, el NTP, el programa y la contraseña (solo se aplica la configuración de red): en firmware 15.x, causa observada = contraseña de administrador considerada demasiado débil (11 caracteres sin cifra rechazada, 12 caracteres con cifras aceptada)"
+        Proc_Check_2      = "- Si no, la configuración no se aplicó por completo (nombre, NTP, programa, contraseña): vuelva a insertar la tarjeta y verifique de nuevo"
 
         # --- Network module ---
         NetManifestRecover = "Recuperando manifest..."
@@ -1458,7 +1458,7 @@ $Script:Strings = @{
         Proc_ConclusionFw = "Il vostro Ewon Flexy è ora configurato e aggiornato."
         Proc_CheckTitle   = "VERIFICA DELLA CONFIGURAZIONE"
         Proc_Check_1      = "- Nell'interfaccia web dell'Ewon (o eBuddy), il suo nome deve essere «{0}»"
-        Proc_Check_2      = "- Altrimenti l'Ewon ha rifiutato senza avviso nome, NTP, programma e password (viene applicata solo la configurazione di rete): con firmware 15.x, causa riscontrata = password amministratore giudicata troppo debole (11 caratteri senza cifre rifiutata, 12 caratteri con cifre accettata)"
+        Proc_Check_2      = "- Altrimenti, la configurazione non è stata applicata completamente (nome, NTP, programma, password): reinserire la scheda e verificare di nuovo"
 
         # --- Network module ---
         NetManifestRecover = "Recupero del manifest..."
