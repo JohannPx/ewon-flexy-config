@@ -176,17 +176,24 @@ function Remove-T2MFile {
     }
 }
 
+# Indique si la preparation copie un firmware sur la SD (procedure en deux insertions).
+function Test-FirmwareUpdateRequested {
+    param([Parameter(Mandatory)][hashtable]$State)
+    return (-not $State.SkipFirmwareUpdate -and [bool]$State.TargetFirmware)
+}
+
 function Test-SDContents {
     param(
         [Parameter(Mandatory)][string]$SdRoot,
-        [Parameter(Mandatory)][hashtable]$State
+        [Parameter(Mandatory)][hashtable]$State,
+        [switch]$WithoutFirmware
     )
 
     $expected = @("backup.tar")
     if ($State.Mode -ne "Preparation" -and $State.ConnectionType -ne "Datalogger") {
         $expected += "T2M.txt"
     }
-    if (-not $State.SkipFirmwareUpdate -and $State.TargetFirmware) {
+    if (-not $WithoutFirmware -and (Test-FirmwareUpdateRequested -State $State)) {
         $fwInfo = $null
         if ($State.Manifest) {
             $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware } | Select-Object -First 1
@@ -208,12 +215,35 @@ function Test-SDContents {
     return @{ AllOk = $allOk; Files = $results }
 }
 
+# Prepare la deuxieme insertion : tant que le firmware reste sur la SD, l'Ewon le reinstalle
+# a chaque insertion (meme a version identique) et n'applique alors ni backup.tar ni T2M.txt.
+function Invoke-SecondInsertionPreparation {
+    param(
+        [Parameter(Mandatory)][hashtable]$State,
+        [scriptblock]$OnLog = { param($Message) }
+    )
+
+    $sdRoot = $State.SdDrive
+    if (-not (Test-Path (Join-Path $sdRoot "backup.tar"))) {
+        throw ((T "SecondInsSdNotFound") -f $sdRoot)
+    }
+
+    Remove-FirmwareFromSD -SdRoot $sdRoot -OnLog $OnLog
+
+    $verification = Test-SDContents -SdRoot $sdRoot -State $State -WithoutFirmware
+    foreach ($f in $verification.Files) {
+        $status = if ($f.Found) { T "GenFileOk" } else { T "GenFileMissing" }
+        & $OnLog "$status $($f.File)"
+    }
+    if (-not $verification.AllOk) { throw (T "GenFilesMissing") }
+}
+
 function New-ProcedureDocument {
     param([Parameter(Mandatory)][hashtable]$State)
 
     $collectedParams = $State.CollectedParams
     $connectionType = $State.ConnectionType
-    $skipFirmwareUpdate = $State.SkipFirmwareUpdate
+    $skipFirmwareUpdate = -not (Test-FirmwareUpdateRequested -State $State)
 
     $sb = New-Object System.Text.StringBuilder
 
@@ -250,22 +280,9 @@ function New-ProcedureDocument {
         [void]$sb.AppendLine((T "Proc_Step2NoFw_3"))
         [void]$sb.AppendLine((T "Proc_Step2NoFw_4"))
         [void]$sb.AppendLine((T "Proc_Step2NoFw_5"))
-        [void]$sb.AppendLine("")
-
-        # Remote access or Datalogger verification
-        if ($connectionType -eq "Datalogger") {
-            [void]$sb.AppendLine(("{0}3 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_DLTitle")))
-            [void]$sb.AppendLine((T "Proc_DLText"))
-        } else {
-            [void]$sb.AppendLine(("{0}3 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_RemoteTitle")))
-            [void]$sb.AppendLine((T "Proc_Remote_Intro"))
-            [void]$sb.AppendLine((T "Proc_Remote_1"))
-            [void]$sb.AppendLine((T "Proc_Remote_2"))
-            [void]$sb.AppendLine((T "Proc_Remote_3"))
-            [void]$sb.AppendLine((T "Proc_Remote_4"))
-        }
+        $finalStep = 3
     } else {
-        # With firmware update: two insertions
+        # With firmware update: two insertions, firmware removed from the card in between
         [void]$sb.AppendLine((T "Proc_Step2FwTitle"))
         [void]$sb.AppendLine((T "Proc_Step2Fw_1"))
         [void]$sb.AppendLine((T "Proc_Step2Fw_2"))
@@ -274,26 +291,39 @@ function New-ProcedureDocument {
         [void]$sb.AppendLine((T "Proc_Step2Fw_5"))
         [void]$sb.AppendLine("")
 
+        [void]$sb.AppendLine((T "Proc_StepRmFwTitle"))
+        [void]$sb.AppendLine((T "Proc_StepRmFw_1"))
+        [void]$sb.AppendLine((T "Proc_StepRmFw_2"))
+        [void]$sb.AppendLine((T "Proc_StepRmFw_3"))
+        [void]$sb.AppendLine((T "Proc_StepRmFw_4"))
+        [void]$sb.AppendLine("")
+
         [void]$sb.AppendLine((T "Proc_Step3FwTitle"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_1"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_2"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_3"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_4"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_5"))
-        [void]$sb.AppendLine("")
+        $finalStep = 5
+    }
+    [void]$sb.AppendLine("")
 
-        # Remote access or Datalogger verification
-        if ($connectionType -eq "Datalogger") {
-            [void]$sb.AppendLine(("{0}4 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_DLTitle")))
-            [void]$sb.AppendLine((T "Proc_DLText"))
-        } else {
-            [void]$sb.AppendLine(("{0}4 : {1}" -f (T "Proc_Step1Title").Split(" ")[0], (T "Proc_RemoteTitle")))
-            [void]$sb.AppendLine((T "Proc_Remote_Intro"))
-            [void]$sb.AppendLine((T "Proc_Remote_1"))
-            [void]$sb.AppendLine((T "Proc_Remote_2"))
-            [void]$sb.AppendLine((T "Proc_Remote_3"))
-            [void]$sb.AppendLine((T "Proc_Remote_4"))
-        }
+    [void]$sb.AppendLine((T "Proc_CheckTitle"))
+    [void]$sb.AppendLine(((T "Proc_Check_1") -f $collectedParams["Identification"]))
+    [void]$sb.AppendLine((T "Proc_Check_2"))
+    [void]$sb.AppendLine("")
+
+    # Remote access or Datalogger verification
+    if ($connectionType -eq "Datalogger") {
+        [void]$sb.AppendLine(((T "Proc_StepFormat") -f $finalStep, (T "Proc_DLTitle")))
+        [void]$sb.AppendLine((T "Proc_DLText"))
+    } else {
+        [void]$sb.AppendLine(((T "Proc_StepFormat") -f $finalStep, (T "Proc_RemoteTitle")))
+        [void]$sb.AppendLine((T "Proc_Remote_Intro"))
+        [void]$sb.AppendLine((T "Proc_Remote_1"))
+        [void]$sb.AppendLine((T "Proc_Remote_2"))
+        [void]$sb.AppendLine((T "Proc_Remote_3"))
+        [void]$sb.AppendLine((T "Proc_Remote_4"))
     }
 
     [void]$sb.AppendLine("")
@@ -337,7 +367,7 @@ function Invoke-Generation {
     }
 
     # Download firmware if Online mode
-    if ($State.Mode -eq "Online" -and -not $State.SkipFirmwareUpdate -and $State.TargetFirmware -and $State.Manifest) {
+    if ($State.Mode -eq "Online" -and (Test-FirmwareUpdateRequested -State $State) -and $State.Manifest) {
         & $OnProgress 10 ((T "FwDownloading") -f $State.TargetFirmware)
         $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware } | Select-Object -First 1
         if (-not $fwInfo) { throw (T "GenFwDownloadFail") }
@@ -375,7 +405,7 @@ function Invoke-Generation {
 
     # Copy firmware (stale firmware files are always removed first)
     Remove-FirmwareFromSD -SdRoot $sdRoot -OnLog $OnLog
-    if (-not $State.SkipFirmwareUpdate -and $State.TargetFirmware) {
+    if (Test-FirmwareUpdateRequested -State $State) {
         & $OnProgress 70 (T "GenFwCopy")
         Copy-FirmwareToSD -SdRoot $sdRoot -TargetFw $State.TargetFirmware `
             -CurrentFw $State.CurrentFirmware -FlexyModel $State.FlexyModel `

@@ -334,8 +334,12 @@ $Script:MainXaml = @'
             </Border>
           </ScrollViewer>
 
-          <TextBlock x:Name="txtFinalStatus" FontSize="15" FontWeight="Bold"
-                     HorizontalAlignment="Center" Margin="0,10" Grid.Row="4"/>
+          <StackPanel Grid.Row="4">
+            <Button x:Name="btnRemoveFirmware" Visibility="Collapsed" HorizontalAlignment="Center"
+                    Padding="14,6" Margin="0,10,0,0"/>
+            <TextBlock x:Name="txtFinalStatus" FontSize="15" FontWeight="Bold"
+                       HorizontalAlignment="Center" Margin="0,10"/>
+          </StackPanel>
         </Grid>
       </TabItem>
     </TabControl>
@@ -453,7 +457,7 @@ function Initialize-MainWindow {
         "tbT2MKey","valT2MKey","tbT2MNote","valT2MNote",
         "txtSDTitle","txtSDSubtitle","lbDrives","btnRefreshDrives","txtDriveInfo",
         "txtSummaryTitle","txtSummaryCheck","txtSummary",
-        "txtGenerationTitle","pbGeneration","txtGenerationPercent","lbLog","svProcedure","txtProcedure","txtFinalStatus"
+        "txtGenerationTitle","pbGeneration","txtGenerationPercent","lbLog","svProcedure","txtProcedure","btnRemoveFirmware","txtFinalStatus"
     )
     foreach ($name in $elementNames) {
         $el = $Script:Window.FindName($name)
@@ -594,6 +598,7 @@ function Apply-UILanguage {
     $Script:ui_txtSDTitle.Text = T "SDTitle"
     $Script:ui_txtSDSubtitle.Text = T "SDSubtitle"
     $Script:ui_btnRefreshDrives.Content = T "SDRefresh"
+    $Script:ui_btnRemoveFirmware.Content = T "BtnRemoveFirmware"
     $Script:ui_txtDriveInfo.Text = T "SDDriveInfo"
 
     # Step 6
@@ -1405,6 +1410,7 @@ function Register-Step4Events {
 
 function Register-Step5Events {
     $Script:ui_btnRefreshDrives.Add_Click({ Refresh-DriveList })
+    $Script:ui_btnRemoveFirmware.Add_Click({ Invoke-RemoveFirmwareClick })
     Refresh-DriveList
 }
 
@@ -1554,6 +1560,9 @@ function Start-Generation {
                 $Script:ui_txtProcedure.Text = $procText
                 $Script:ui_txtGenerationTitle.Text = T "GenProcTitle"
             }
+            if (Test-FirmwareUpdateRequested -State $currentState) {
+                $Script:ui_btnRemoveFirmware.Visibility = [System.Windows.Visibility]::Visible
+            }
         } catch {
             $Script:ui_txtFinalStatus.Text = "$(T 'DlgError'): $($_.Exception.Message)"
             $Script:ui_txtFinalStatus.Foreground = [System.Windows.Media.Brushes]::Red
@@ -1566,6 +1575,20 @@ function Start-Generation {
         }
     })
     $timer.Start()
+}
+
+# Retire le firmware de la SD entre les deux insertions (cf. Invoke-SecondInsertionPreparation).
+function Invoke-RemoveFirmwareClick {
+    try {
+        Invoke-SecondInsertionPreparation -State (Get-AppState) -OnLog { param($Message) Add-LogEntry $Message }
+        $Script:ui_btnRemoveFirmware.Visibility = [System.Windows.Visibility]::Collapsed
+        $Script:ui_txtFinalStatus.Text = T "SecondInsReady"
+        $Script:ui_txtFinalStatus.Foreground = [System.Windows.Media.Brushes]::Green
+    } catch {
+        $Script:ui_txtFinalStatus.Text = "$(T 'DlgError'): $($_.Exception.Message)"
+        $Script:ui_txtFinalStatus.Foreground = [System.Windows.Media.Brushes]::Red
+        Add-LogEntry "$(T 'ErrorPrefix') $($_.Exception.Message)"
+    }
 }
 
 function Start-PreparationMode {

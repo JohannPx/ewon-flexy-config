@@ -79,6 +79,8 @@ L'assistant graphique vous guide en 8 étapes :
 7. **Résumé** : Vérification avant génération
 8. **Génération** : Progression et log en temps réel
 
+Avec mise à jour firmware, la carte s'insère deux fois : entre les deux, le bouton **Préparer la 2e insertion** retire le firmware de la carte. Laissé sur la carte, il serait réinstallé à chaque insertion et la configuration (`backup.tar`, `T2M.txt`) ne serait jamais appliquée.
+
 ---
 
 ## 🔧 Fonctionnalités principales
