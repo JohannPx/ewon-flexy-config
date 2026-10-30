@@ -20,6 +20,9 @@ static class Program
     const string SkipUpdateArg = "--skip-update";
     const int UpdateCopyMaxAttempts = 15;
     const int UpdateCopyRetryDelaySeconds = 2;
+    static readonly TimeSpan ReleaseCheckTimeout = TimeSpan.FromSeconds(10);
+    static readonly TimeSpan ExeDownloadTimeout = TimeSpan.FromMinutes(5);
+    const int DownloadBufferSize = 81920;
 
     [STAThread]
     static async Task<int> Main(string[] args)
@@ -121,10 +124,13 @@ static class Program
             catch { /* corrupted file, treat as 0.0.0 */ }
         }
 
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        // Chaque requête porte son propre délai : court pour la consultation de la release, afin de
+        // ne pas retarder le lancement hors connexion, long pour le téléchargement de l'exe (~15 Mo)
+        using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         http.DefaultRequestHeaders.Add("User-Agent", "EwonFlexySdPrep");
 
-        var json = await http.GetStringAsync(GitHubApiUrl);
+        using var releaseCheck = new CancellationTokenSource(ReleaseCheckTimeout);
+        var json = await http.GetStringAsync(GitHubApiUrl, releaseCheck.Token);
         using var release = JsonDocument.Parse(json);
         var root = release.RootElement;
 
@@ -146,10 +152,20 @@ static class Program
         }
         if (downloadUrl == null) return;
 
-        // Download new exe to temp
+        // Download new exe to temp, en affichant la progression
         var tempExe = Path.Combine(Path.GetTempPath(), "EwonFlexySdPrep_update.exe");
-        var bytes = await http.GetByteArrayAsync(downloadUrl);
-        await File.WriteAllBytesAsync(tempExe, bytes);
+        using var downloadCancellation = new CancellationTokenSource(ExeDownloadTimeout);
+        long received = 0, total = 0;
+        var download = DownloadAsync(http, downloadUrl, tempExe,
+            (r, t) => { Interlocked.Exchange(ref received, r); Interlocked.Exchange(ref total, t); },
+            downloadCancellation.Token);
+        if (!download.IsCompleted)
+        {
+            UpdateProgressDialog.Show(AppName, string.Format(WrapperText.Get("UpdateTitle"), remoteVersion),
+                () => (Interlocked.Read(ref received), Interlocked.Read(ref total)),
+                download, downloadCancellation);
+        }
+        await download;
 
         // La version n'est enregistrée qu'une fois l'exe réellement remplacé : si la copie échoue
         // (exe encore verrouillé), la mise à jour est retentée au prochain lancement au lieu
@@ -184,6 +200,38 @@ static class Program
         });
 
         Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// Télécharge <paramref name="url"/> dans <paramref name="path"/> en signalant les octets reçus
+    /// et la taille totale (0 si inconnue). Un fichier partiel est supprimé en cas d'échec.
+    /// </summary>
+    static async Task DownloadAsync(HttpClient http, string url, string path,
+        Action<long, long> onProgress, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var response = await http.GetAsync(url, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
+            response.EnsureSuccessStatusCode();
+            var total = response.Content.Headers.ContentLength ?? 0;
+
+            await using var source = await response.Content.ReadAsStreamAsync(cancellationToken);
+            await using var target = File.Create(path);
+            var buffer = new byte[DownloadBufferSize];
+            long received = 0;
+            int read;
+            while ((read = await source.ReadAsync(buffer, cancellationToken)) > 0)
+            {
+                await target.WriteAsync(buffer.AsMemory(0, read), cancellationToken);
+                received += read;
+                onProgress(received, total);
+            }
+        }
+        catch
+        {
+            File.Delete(path);
+            throw;
+        }
     }
 
     /// <summary>

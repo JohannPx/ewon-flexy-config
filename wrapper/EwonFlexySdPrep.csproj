@@ -9,6 +9,7 @@
     <PublishTrimmed>true</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <ApplicationIcon>icon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>EwonFlexySdPrep</AssemblyName>
     <RootNamespace>EwonFlexySdPrep</RootNamespace>
     <Company>Clauger</Company>
