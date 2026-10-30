@@ -252,11 +252,13 @@ static class Program
 
         try
         {
+            // CreateNoWindow suffit à masquer la console. Un style « masqué » serait appliqué par
+            // .NET 8 à la première fenêtre WPF de l'application, qui n'aurait alors pas de bouton
+            // dans la barre des tâches tant qu'elle n'a pas reçu le focus.
             var psi = new ProcessStartInfo("powershell.exe",
-                $"""-Sta -WindowStyle Hidden -ExecutionPolicy Bypass -File "{scriptPath}" """)
+                $"""-Sta -ExecutionPolicy Bypass -File "{scriptPath}" """)
             {
                 CreateNoWindow = true,
-                WindowStyle = ProcessWindowStyle.Hidden,
                 UseShellExecute = false
             };
 
