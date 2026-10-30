@@ -20,7 +20,9 @@ static class Program
     const string SkipUpdateArg = "--skip-update";
     const int UpdateCopyMaxAttempts = 15;
     const int UpdateCopyRetryDelaySeconds = 2;
-    static readonly TimeSpan ReleaseCheckTimeout = TimeSpan.FromSeconds(10);
+    // Le premier appel à GitHub peut dépasser 10 s sur certains réseaux (11,8 s mesurées)
+    static readonly TimeSpan ReleaseCheckTimeout = TimeSpan.FromSeconds(30);
+    static readonly TimeSpan UpdateDialogDelay = TimeSpan.FromSeconds(1);
     static readonly TimeSpan ExeDownloadTimeout = TimeSpan.FromMinutes(5);
     const int DownloadBufferSize = 81920;
 
@@ -124,48 +126,20 @@ static class Program
             catch { /* corrupted file, treat as 0.0.0 */ }
         }
 
-        // Chaque requête porte son propre délai : court pour la consultation de la release, afin de
-        // ne pas retarder le lancement hors connexion, long pour le téléchargement de l'exe (~15 Mo)
         using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
         http.DefaultRequestHeaders.Add("User-Agent", "EwonFlexySdPrep");
 
-        using var releaseCheck = new CancellationTokenSource(ReleaseCheckTimeout);
-        var json = await http.GetStringAsync(GitHubApiUrl, releaseCheck.Token);
-        using var release = JsonDocument.Parse(json);
-        var root = release.RootElement;
-
-        var remoteTag = root.GetProperty("tag_name").GetString() ?? "";
-        var remoteVersion = remoteTag.TrimStart('v');
-
-        if (remoteVersion == localVersion) return;
-
-        // Find the .exe asset
-        string? downloadUrl = null;
-        foreach (var asset in root.GetProperty("assets").EnumerateArray())
-        {
-            var name = asset.GetProperty("name").GetString() ?? "";
-            if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
-            {
-                downloadUrl = asset.GetProperty("browser_download_url").GetString();
-                break;
-            }
-        }
-        if (downloadUrl == null) return;
-
-        // Download new exe to temp, en affichant la progression
+        // Vérification puis téléchargement en tâche de fond ; la fenêtre de suivi n'apparaît que
+        // si l'opération dure, pour ne pas clignoter à chaque lancement
         var tempExe = Path.Combine(Path.GetTempPath(), "EwonFlexySdPrep_update.exe");
-        using var downloadCancellation = new CancellationTokenSource(ExeDownloadTimeout);
-        long received = 0, total = 0;
-        var download = DownloadAsync(http, downloadUrl, tempExe,
-            (r, t) => { Interlocked.Exchange(ref received, r); Interlocked.Exchange(ref total, t); },
-            downloadCancellation.Token);
-        if (!download.IsCompleted)
-        {
-            UpdateProgressDialog.Show(AppName, string.Format(WrapperText.Get("UpdateTitle"), remoteVersion),
-                () => (Interlocked.Read(ref received), Interlocked.Read(ref total)),
-                download, downloadCancellation);
-        }
-        await download;
+        var status = new UpdateStatus();
+        using var cancellation = new CancellationTokenSource();
+        var fetch = FetchUpdateAsync(http, localVersion, tempExe, status, cancellation.Token);
+        if (await Task.WhenAny(fetch, Task.Delay(UpdateDialogDelay)) != fetch)
+            UpdateProgressDialog.Show(AppName, status, fetch, cancellation);
+
+        var remoteVersion = await fetch;
+        if (remoteVersion == null) return;
 
         // La version n'est enregistrée qu'une fois l'exe réellement remplacé : si la copie échoue
         // (exe encore verrouillé), la mise à jour est retentée au prochain lancement au lieu
@@ -200,6 +174,46 @@ static class Program
         });
 
         Environment.Exit(0);
+    }
+
+    /// <summary>
+    /// Consulte la dernière release ; si sa version diffère de <paramref name="localVersion"/>,
+    /// télécharge son exe dans <paramref name="path"/> et renvoie cette version, sinon null.
+    /// Chaque requête a son propre délai : court pour la consultation, afin de ne pas retarder
+    /// le lancement hors connexion, long pour le téléchargement de l'exe (~15 Mo).
+    /// </summary>
+    static async Task<string?> FetchUpdateAsync(HttpClient http, string localVersion, string path,
+        UpdateStatus status, CancellationToken cancellationToken)
+    {
+        using var releaseCheck = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        releaseCheck.CancelAfter(ReleaseCheckTimeout);
+        var json = await http.GetStringAsync(GitHubApiUrl, releaseCheck.Token);
+        using var release = JsonDocument.Parse(json);
+        var root = release.RootElement;
+
+        var remoteTag = root.GetProperty("tag_name").GetString() ?? "";
+        var remoteVersion = remoteTag.TrimStart('v');
+
+        if (remoteVersion == localVersion) return null;
+
+        // Find the .exe asset
+        string? downloadUrl = null;
+        foreach (var asset in root.GetProperty("assets").EnumerateArray())
+        {
+            var name = asset.GetProperty("name").GetString() ?? "";
+            if (name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase))
+            {
+                downloadUrl = asset.GetProperty("browser_download_url").GetString();
+                break;
+            }
+        }
+        if (downloadUrl == null) return null;
+
+        status.TargetVersion = remoteVersion;
+        using var download = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        download.CancelAfter(ExeDownloadTimeout);
+        await DownloadAsync(http, downloadUrl, path, status.ReportProgress, download.Token);
+        return remoteVersion;
     }
 
     /// <summary>
