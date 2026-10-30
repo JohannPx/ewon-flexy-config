@@ -16,13 +16,18 @@ static class Program
         "EwonFlexySdPrep");
     static readonly string VersionFile = Path.Combine(InstallDir, "version.json");
 
+    // Argument passé à l'ancien exe relancé après un remplacement raté
+    const string SkipUpdateArg = "--skip-update";
+    const int UpdateCopyMaxAttempts = 15;
+    const int UpdateCopyRetryDelaySeconds = 2;
+
     [STAThread]
     static async Task<int> Main(string[] args)
     {
         try
         {
             if (InstallIfNeeded()) return 0;
-            await UpdateSilently();
+            if (!args.Contains(SkipUpdateArg)) await UpdateSilently();
             LaunchScript();
         }
         catch
@@ -146,18 +151,27 @@ static class Program
         var bytes = await http.GetByteArrayAsync(downloadUrl);
         await File.WriteAllBytesAsync(tempExe, bytes);
 
-        // Save new version
-        File.WriteAllText(VersionFile,
-            $$$"""{"version":"{{{remoteVersion}}}","date":"{{{DateTime.Now:yyyy-MM-dd}}}"}""");
-
-        // Write batch to replace exe and relaunch
+        // La version n'est enregistrée qu'une fois l'exe réellement remplacé : si la copie échoue
+        // (exe encore verrouillé), la mise à jour est retentée au prochain lancement au lieu
+        // d'être considérée comme faite. En cas d'échec, l'ancien exe est relancé sans
+        // mise à jour pour ne pas boucler.
+        var versionJson = $$$"""{"version":"{{{remoteVersion}}}","date":"{{{DateTime.Now:yyyy-MM-dd}}}"}""";
         var batchPath = Path.Combine(Path.GetTempPath(), "ewon_update.cmd");
         File.WriteAllText(batchPath,
             $"""
             @echo off
-            timeout /t 2 /nobreak >nul
-            copy /y "{tempExe}" "{installedExe}" >nul
+            set attempts=0
+            :retry
+            timeout /t {UpdateCopyRetryDelaySeconds} /nobreak >nul
+            copy /y "{tempExe}" "{installedExe}" >nul 2>&1 && goto copied
+            set /a attempts+=1
+            if %attempts% lss {UpdateCopyMaxAttempts} goto retry
+            start "" "{installedExe}" {SkipUpdateArg}
+            goto cleanup
+            :copied
+            >"{VersionFile}" echo {versionJson}
             start "" "{installedExe}"
+            :cleanup
             del "{tempExe}" >nul 2>&1
             del "%~f0" >nul 2>&1
             """, Encoding.ASCII);
