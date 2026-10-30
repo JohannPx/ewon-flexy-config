@@ -163,13 +163,6 @@ $Script:MainXaml = @'
             </Border>
 
             <Separator Margin="0,8"/>
-            <TextBlock x:Name="txtHwTitle" Text="Materiel" Style="{StaticResource StepHeader}"/>
-            <StackPanel Orientation="Horizontal" Margin="0,5">
-              <TextBlock x:Name="txtFlexyModelLabel" Text="Modele Flexy :" VerticalAlignment="Center" Width="130"/>
-              <ComboBox x:Name="cbFlexyModel" Width="180"/>
-            </StackPanel>
-
-            <Separator Margin="0,8"/>
             <TextBlock x:Name="txtFwTitle" Text="Firmware" Style="{StaticResource StepHeader}"/>
             <TextBlock x:Name="txtFwHelp" Text="..." Style="{StaticResource SubText}"/>
 
@@ -334,12 +327,8 @@ $Script:MainXaml = @'
             </Border>
           </ScrollViewer>
 
-          <StackPanel Grid.Row="4">
-            <Button x:Name="btnRemoveFirmware" Visibility="Collapsed" HorizontalAlignment="Center"
-                    Padding="14,6" Margin="0,10,0,0"/>
-            <TextBlock x:Name="txtFinalStatus" FontSize="15" FontWeight="Bold"
-                       HorizontalAlignment="Center" Margin="0,10"/>
-          </StackPanel>
+          <TextBlock x:Name="txtFinalStatus" FontSize="15" FontWeight="Bold"
+                     HorizontalAlignment="Center" Margin="0,10" Grid.Row="4"/>
         </Grid>
       </TabItem>
     </TabControl>
@@ -446,7 +435,6 @@ function Initialize-MainWindow {
         "txtStepTitle","pbSteps","btnCancel","btnPrevious","btnNext","wizardTabs",
         "txtLangLabel","btnLangFR","btnLangEN","btnLangES","btnLangIT","btnNetworkDiag",
         "txtModeTitle","rbOnline","rbCache","rbPreparation","brdConnStatus","txtConnStatus",
-        "txtHwTitle","txtFlexyModelLabel","cbFlexyModel",
         "txtFwTitle","txtFwHelp","txtFwCurrentLabel","txtFwTargetLabel","cbCurrentFw","cbTargetFw","chkSkipFirmware",
         "txtConnTypeTitle","txtConnTypeSubtitle",
         "txt4GTitle","txt4GDesc","txtEthTitle","txtEthDesc","txtDLTitle","txtDLDesc",
@@ -457,7 +445,7 @@ function Initialize-MainWindow {
         "tbT2MKey","valT2MKey","tbT2MNote","valT2MNote",
         "txtSDTitle","txtSDSubtitle","lbDrives","btnRefreshDrives","txtDriveInfo",
         "txtSummaryTitle","txtSummaryCheck","txtSummary",
-        "txtGenerationTitle","pbGeneration","txtGenerationPercent","lbLog","svProcedure","txtProcedure","btnRemoveFirmware","txtFinalStatus"
+        "txtGenerationTitle","pbGeneration","txtGenerationPercent","lbLog","svProcedure","txtProcedure","txtFinalStatus"
     )
     foreach ($name in $elementNames) {
         $el = $Script:Window.FindName($name)
@@ -562,9 +550,6 @@ function Apply-UILanguage {
     # Step 0
     $Script:ui_txtModeTitle.Text = T "ModeTitle"
     Show-ConnStatus
-    $Script:ui_txtHwTitle.Text = T "HwTitle"
-    $Script:ui_txtFlexyModelLabel.Text = T "FlexyModelLabel"
-    Build-FlexyModelCombo
     $Script:ui_txtFwTitle.Text = T "FwTitle"
     $Script:ui_txtFwHelp.Text = T "FwHelpText"
     $Script:ui_txtFwCurrentLabel.Text = T "FwCurrentLabel"
@@ -598,7 +583,6 @@ function Apply-UILanguage {
     $Script:ui_txtSDTitle.Text = T "SDTitle"
     $Script:ui_txtSDSubtitle.Text = T "SDSubtitle"
     $Script:ui_btnRefreshDrives.Content = T "SDRefresh"
-    $Script:ui_btnRemoveFirmware.Content = T "BtnRemoveFirmware"
     $Script:ui_txtDriveInfo.Text = T "SDDriveInfo"
 
     # Step 6
@@ -815,10 +799,6 @@ function Collect-StepState {
             elseif ($Script:ui_rbCache.IsChecked)    { Set-AppStateValue -Key "Mode" -Value "Cache" }
             elseif ($Script:ui_rbPreparation.IsChecked) { Set-AppStateValue -Key "Mode" -Value "Preparation" }
 
-            # Hardware: Flexy model
-            $modelItem = $Script:ui_cbFlexyModel.SelectedItem
-            if ($modelItem -and $modelItem.Tag) { Set-AppStateValue -Key "FlexyModel" -Value $modelItem.Tag }
-
             # Firmware
             Set-AppStateValue -Key "SkipFirmwareUpdate" -Value ([bool]$Script:ui_chkSkipFirmware.IsChecked)
             if (-not $Script:ui_chkSkipFirmware.IsChecked) {
@@ -899,19 +879,6 @@ function Collect-StepState {
 
 # ============ STEP 0: MODE + FIRMWARE ============
 
-function Build-FlexyModelCombo {
-    $previous = (Get-AppState).FlexyModel
-    $Script:ui_cbFlexyModel.Items.Clear()
-    foreach ($model in (Get-FlexyModels)) {
-        $item = New-Object System.Windows.Controls.ComboBoxItem
-        $item.Content = T "FlexyModel$model"
-        $item.Tag = $model
-        $Script:ui_cbFlexyModel.Items.Add($item) | Out-Null
-        if ($model -eq $previous) { $Script:ui_cbFlexyModel.SelectedItem = $item }
-    }
-    if ($Script:ui_cbFlexyModel.SelectedIndex -lt 0) { $Script:ui_cbFlexyModel.SelectedIndex = 0 }
-}
-
 function Register-Step0Events {
     $Script:ui_chkSkipFirmware.Add_Checked({
         $Script:ui_cbCurrentFw.IsEnabled = $false
@@ -928,11 +895,6 @@ function Register-Step0Events {
 
     $Script:ui_btnNetworkDiag.Add_Click({
         Show-NetworkDiagnosticWindow -Owner $Script:Window
-    })
-
-    $Script:ui_cbFlexyModel.Add_SelectionChanged({
-        $sel = $Script:ui_cbFlexyModel.SelectedItem
-        if ($sel -and $sel.Tag) { Set-AppStateValue -Key "FlexyModel" -Value $sel.Tag }
     })
 
     Populate-FirmwareOptions
@@ -1063,7 +1025,7 @@ function Update-TargetFirmwareList {
     if (-not $currentSel) { return }
 
     $state = Get-AppState
-    $compatible = @(Get-CompatibleFirmwares -CurrentFw $currentSel.ToString() -AvailableFirmwares $state.AvailableFirmwares -Manifest $state.Manifest)
+    $compatible = @(Get-CompatibleFirmwares -AvailableFirmwares $state.AvailableFirmwares)
     Set-AppStateValue -Key "CompatibleFirmwares" -Value $compatible
 
     foreach ($fw in $compatible) {
@@ -1410,7 +1372,6 @@ function Register-Step4Events {
 
 function Register-Step5Events {
     $Script:ui_btnRefreshDrives.Add_Click({ Refresh-DriveList })
-    $Script:ui_btnRemoveFirmware.Add_Click({ Invoke-RemoveFirmwareClick })
     Refresh-DriveList
 }
 
@@ -1443,7 +1404,6 @@ function Build-SummaryText {
     $sb = [System.Text.StringBuilder]::new()
 
     [void]$sb.AppendLine("$(T 'SumMode') : $($state.Mode)")
-    [void]$sb.AppendLine("$(T 'SumFlexyModel') : Flexy $($state.FlexyModel)")
     [void]$sb.AppendLine("$(T 'SumConnType') : $($state.ConnectionType)")
     [void]$sb.AppendLine("")
 
@@ -1560,9 +1520,6 @@ function Start-Generation {
                 $Script:ui_txtProcedure.Text = $procText
                 $Script:ui_txtGenerationTitle.Text = T "GenProcTitle"
             }
-            if (Test-FirmwareUpdateRequested -State $currentState) {
-                $Script:ui_btnRemoveFirmware.Visibility = [System.Windows.Visibility]::Visible
-            }
         } catch {
             $Script:ui_txtFinalStatus.Text = "$(T 'DlgError'): $($_.Exception.Message)"
             $Script:ui_txtFinalStatus.Foreground = [System.Windows.Media.Brushes]::Red
@@ -1575,20 +1532,6 @@ function Start-Generation {
         }
     })
     $timer.Start()
-}
-
-# Retire le firmware de la SD entre les deux insertions (cf. Invoke-SecondInsertionPreparation).
-function Invoke-RemoveFirmwareClick {
-    try {
-        Invoke-SecondInsertionPreparation -State (Get-AppState) -OnLog { param($Message) Add-LogEntry $Message }
-        $Script:ui_btnRemoveFirmware.Visibility = [System.Windows.Visibility]::Collapsed
-        $Script:ui_txtFinalStatus.Text = T "SecondInsReady"
-        $Script:ui_txtFinalStatus.Foreground = [System.Windows.Media.Brushes]::Green
-    } catch {
-        $Script:ui_txtFinalStatus.Text = "$(T 'DlgError'): $($_.Exception.Message)"
-        $Script:ui_txtFinalStatus.Foreground = [System.Windows.Media.Brushes]::Red
-        Add-LogEntry "$(T 'ErrorPrefix') $($_.Exception.Message)"
-    }
 }
 
 function Start-PreparationMode {
