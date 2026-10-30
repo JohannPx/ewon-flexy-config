@@ -20,6 +20,8 @@ static class Program
     const string SkipUpdateArg = "--skip-update";
     const int UpdateCopyMaxAttempts = 15;
     const int UpdateCopyRetryDelaySeconds = 2;
+    static readonly TimeSpan ReleaseCheckTimeout = TimeSpan.FromSeconds(10);
+    static readonly TimeSpan ExeDownloadTimeout = TimeSpan.FromMinutes(5);
 
     [STAThread]
     static async Task<int> Main(string[] args)
@@ -121,10 +123,13 @@ static class Program
             catch { /* corrupted file, treat as 0.0.0 */ }
         }
 
-        using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+        // Délai global à l'échelle du téléchargement de l'exe (~15 Mo) ; la consultation de la
+        // release garde un délai court pour ne pas retarder le lancement hors connexion
+        using var http = new HttpClient { Timeout = ExeDownloadTimeout };
         http.DefaultRequestHeaders.Add("User-Agent", "EwonFlexySdPrep");
 
-        var json = await http.GetStringAsync(GitHubApiUrl);
+        using var releaseCheck = new CancellationTokenSource(ReleaseCheckTimeout);
+        var json = await http.GetStringAsync(GitHubApiUrl, releaseCheck.Token);
         using var release = JsonDocument.Parse(json);
         var root = release.RootElement;
 
