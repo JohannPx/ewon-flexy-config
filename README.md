@@ -79,7 +79,7 @@ L'assistant graphique vous guide en 8 étapes :
 7. **Résumé** : Vérification avant génération
 8. **Génération** : Progression et log en temps réel
 
-Avec mise à jour firmware, la carte s'insère deux fois : entre les deux, le bouton **Préparer la 2e insertion** retire le firmware de la carte. Laissé sur la carte, il serait réinstallé à chaque insertion et la configuration (`backup.tar`, `T2M.txt`) ne serait jamais appliquée.
+Le firmware est copié sous forme d'image complète HMS `ewonfwr.ebus` (commune aux Flexy 202 et 205), accompagnée de `ewonfwr.ebu` pour un Ewon encore en 14.x : la 15.x s'installe directement, sans firmware intermédiaire. Une image `.ebus` déjà installée n'est pas réinstallée, la carte reste donc telle quelle pour la 2e insertion qui applique la configuration. Ne pas utiliser de paquet `.edf`/`.edfs` : réinstallé à chaque insertion, il empêche l'application de `backup.tar` et `T2M.txt`.
 
 ---
 

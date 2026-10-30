@@ -12,9 +12,6 @@ $Script:AppState = @{
     AvailableFirmwares  = @()
     CompatibleFirmwares = @()
 
-    # Hardware
-    FlexyModel          = "202"          # "202" | "205"
-
     # Connection
     ConnectionType      = "Ethernet"     # "4G" | "Ethernet" | "Datalogger"
 

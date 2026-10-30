@@ -185,21 +185,20 @@ function Test-FirmwareUpdateRequested {
 function Test-SDContents {
     param(
         [Parameter(Mandatory)][string]$SdRoot,
-        [Parameter(Mandatory)][hashtable]$State,
-        [switch]$WithoutFirmware
+        [Parameter(Mandatory)][hashtable]$State
     )
 
     $expected = @("backup.tar")
     if ($State.Mode -ne "Preparation" -and $State.ConnectionType -ne "Datalogger") {
         $expected += "T2M.txt"
     }
-    if (-not $WithoutFirmware -and (Test-FirmwareUpdateRequested -State $State)) {
+    if (Test-FirmwareUpdateRequested -State $State) {
         $fwInfo = $null
         if ($State.Manifest) {
             $fwInfo = $State.Manifest.firmwares | Where-Object { $_.version -eq $State.TargetFirmware } | Select-Object -First 1
         }
         if ($fwInfo) {
-            $expected += @(Get-FirmwareSdFiles -FwInfo $fwInfo -CurrentFw $State.CurrentFirmware -FlexyModel $State.FlexyModel)
+            $expected += @(Get-FirmwareSdFiles -FwInfo $fwInfo -CurrentFw $State.CurrentFirmware)
         }
     }
 
@@ -213,29 +212,6 @@ function Test-SDContents {
     }
 
     return @{ AllOk = $allOk; Files = $results }
-}
-
-# Prepare la deuxieme insertion : tant que le firmware reste sur la SD, l'Ewon le reinstalle
-# a chaque insertion (meme a version identique) et n'applique alors ni backup.tar ni T2M.txt.
-function Invoke-SecondInsertionPreparation {
-    param(
-        [Parameter(Mandatory)][hashtable]$State,
-        [scriptblock]$OnLog = { param($Message) }
-    )
-
-    $sdRoot = $State.SdDrive
-    if (-not (Test-Path (Join-Path $sdRoot "backup.tar"))) {
-        throw ((T "SecondInsSdNotFound") -f $sdRoot)
-    }
-
-    Remove-FirmwareFromSD -SdRoot $sdRoot -OnLog $OnLog
-
-    $verification = Test-SDContents -SdRoot $sdRoot -State $State -WithoutFirmware
-    foreach ($f in $verification.Files) {
-        $status = if ($f.Found) { T "GenFileOk" } else { T "GenFileMissing" }
-        & $OnLog "$status $($f.File)"
-    }
-    if (-not $verification.AllOk) { throw (T "GenFilesMissing") }
 }
 
 function New-ProcedureDocument {
@@ -282,7 +258,7 @@ function New-ProcedureDocument {
         [void]$sb.AppendLine((T "Proc_Step2NoFw_5"))
         $finalStep = 3
     } else {
-        # With firmware update: two insertions, firmware removed from the card in between
+        # With firmware update: two insertions
         [void]$sb.AppendLine((T "Proc_Step2FwTitle"))
         [void]$sb.AppendLine((T "Proc_Step2Fw_1"))
         [void]$sb.AppendLine((T "Proc_Step2Fw_2"))
@@ -291,20 +267,13 @@ function New-ProcedureDocument {
         [void]$sb.AppendLine((T "Proc_Step2Fw_5"))
         [void]$sb.AppendLine("")
 
-        [void]$sb.AppendLine((T "Proc_StepRmFwTitle"))
-        [void]$sb.AppendLine((T "Proc_StepRmFw_1"))
-        [void]$sb.AppendLine((T "Proc_StepRmFw_2"))
-        [void]$sb.AppendLine((T "Proc_StepRmFw_3"))
-        [void]$sb.AppendLine((T "Proc_StepRmFw_4"))
-        [void]$sb.AppendLine("")
-
         [void]$sb.AppendLine((T "Proc_Step3FwTitle"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_1"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_2"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_3"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_4"))
         [void]$sb.AppendLine((T "Proc_Step3Fw_5"))
-        $finalStep = 5
+        $finalStep = 4
     }
     [void]$sb.AppendLine("")
 
@@ -408,8 +377,7 @@ function Invoke-Generation {
     if (Test-FirmwareUpdateRequested -State $State) {
         & $OnProgress 70 (T "GenFwCopy")
         Copy-FirmwareToSD -SdRoot $sdRoot -TargetFw $State.TargetFirmware `
-            -CurrentFw $State.CurrentFirmware -FlexyModel $State.FlexyModel `
-            -Manifest $State.Manifest -OnLog $OnLog
+            -CurrentFw $State.CurrentFirmware -Manifest $State.Manifest -OnLog $OnLog
     }
 
     # Write T2M
